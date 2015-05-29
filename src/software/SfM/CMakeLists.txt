@@ -145,20 +145,27 @@ ADD_EXECUTABLE(openMVG_main_openMVG2CMPMVS main_openMVG2CMPMVS.cpp)
 TARGET_LINK_LIBRARIES(openMVG_main_openMVG2CMPMVS
                      ${OpenMVG_LIBS})
 
+# - Export a SfM openMVG scene to MICMAC format
+#
+ADD_EXECUTABLE(openMVG_main_openMVG2MICMAC main_openMVG2MICMAC.cpp)
+TARGET_LINK_LIBRARIES(openMVG_main_openMVG2MICMAC
+                     ${OpenMVG_LIBS})
+
+
 # - Export a SfM openMVG scene to meshlab scene with rasters
-# -
+#
 ADD_EXECUTABLE(openMVG_main_openMVG2MESHLAB main_openMVG2MESHLAB.cpp)
 TARGET_LINK_LIBRARIES(openMVG_main_openMVG2MESHLAB
                      ${OpenMVG_LIBS})
 
 # - Export a SfM openMVG scene to mvs-texturing scene folder
-# -
+#
 ADD_EXECUTABLE(openMVG_main_openMVG2MVSTEXTURING main_openMVG2MVSTEXTURING.cpp)
 TARGET_LINK_LIBRARIES(openMVG_main_openMVG2MVSTEXTURING
                      ${OpenMVG_LIBS})
 
 # - Export SfM openMVG camera scene as triangle meshes
-# -
+#
 ADD_EXECUTABLE(openMVG_main_ExportCameraFrustums main_ExportCameraFrustums.cpp)
 TARGET_LINK_LIBRARIES(openMVG_main_ExportCameraFrustums
                      ${OpenMVG_LIBS})
@@ -168,6 +175,8 @@ SET_PROPERTY(TARGET openMVG_main_openMVG2PMVS PROPERTY FOLDER OpenMVG/software)
 INSTALL(TARGETS openMVG_main_openMVG2PMVS DESTINATION bin/)
 SET_PROPERTY(TARGET openMVG_main_openMVG2CMPMVS PROPERTY FOLDER OpenMVG/software)
 INSTALL(TARGETS openMVG_main_openMVG2CMPMVS DESTINATION bin/)
+SET_PROPERTY(TARGET openMVG_main_openMVG2MICMAC PROPERTY FOLDER OpenMVG/software)
+INSTALL(TARGETS openMVG_main_openMVG2MICMAC DESTINATION bin/)
 SET_PROPERTY(TARGET openMVG_main_openMVG2MESHLAB PROPERTY FOLDER OpenMVG/software)
 INSTALL(TARGETS openMVG_main_openMVG2MESHLAB DESTINATION bin/)
 SET_PROPERTY(TARGET openMVG_main_openMVG2MVSTEXTURING PROPERTY FOLDER OpenMVG/software)
