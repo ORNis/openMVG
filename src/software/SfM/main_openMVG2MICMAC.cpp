@@ -47,8 +47,6 @@ int main(int argc, char **argv)
             << "--sfmdata " << sSfM_Data_Filename << std::endl
             << "--outdir " << sOutDir << std::endl;
 
-  bool bOneHaveDisto = false;
-
   // Use Apero/MicMac prefix
   sOutDir = "Ori-" + sOutDir;
   // Create output dir
@@ -57,7 +55,7 @@ int main(int argc, char **argv)
 
   // Read the SfM scene
   SfM_Data sfm_data;
-  if (!Load(sfm_data, sSfM_Data_Filename, ESfM_Data(VIEWS|INTRINSICS|EXTRINSICS))) {
+  if (!Load(sfm_data, sSfM_Data_Filename, ESfM_Data(ALL))) {
     std::cerr << std::endl
       << "The input SfM_Data file \""<< sSfM_Data_Filename << "\" cannot be read." << std::endl;
     return EXIT_FAILURE;
@@ -78,6 +76,27 @@ int main(int argc, char **argv)
     if (!cameras::isPinhole(cam->getType()))
         continue;
     const Pinhole_Intrinsic * pinhole_cam = static_cast<const Pinhole_Intrinsic *>(cam);
+
+    // We compute the 'AltiSol' an the 'Depth' param. Suboptimal for now.
+    double sumDepths = 0., sumZ = 0.;
+    int anInc = 0;
+    for(Landmarks::const_iterator iterL = sfm_data.GetLandmarks().begin();
+            iterL != sfm_data.GetLandmarks().end(); ++iterL)
+    {
+        for(Observations::const_iterator iterObs = iterL->second.obs.begin();
+                iterObs != iterL->second.obs.end(); ++iterObs)
+        {
+            if(iter->second->id_view == view->id_view)
+            {
+                ++anInc;
+                sumZ += iterL->second.X[2];
+                sumDepths += pose.depth(iterL->second.X);
+            }
+        }
+    }
+
+    const double meanDepth = sumDepths / (double) anInc;
+    const double meanZ = sumZ / (double) anInc;
 
     // Extrinsic
     const Vec3 c = pose.center();
@@ -112,12 +131,15 @@ int main(int argc, char **argv)
         << "            <CalibDistortion>\n"
         << "                <ModRad>\n"
         << "                    <CDist>" << pp(0) << " " <<  pp(1) << "</CDist>\n"
-        << "                    <CoeffDist>" << "0</CoeffDist>\n" //TODO: loop through all k and nest a <CoefDist>
+        << "                    <CoeffDist>" << "</CoeffDist>\n" //TODO: loop through all Ks and nest a <CoefDist> each time
+                                                                 // it's the same formula up to the normalization applied in OMVG
+                                                                // so raw Ks from OMVG are to big for MM.
         << "                </ModRad>\n"
         << "            </CalibDistortion>\n"
         << "        </Interne>\n"
         << "        <Externe>\n"
-                        //TODO: </AltiSol> and </Profondeur> are in fact needed by the correlator
+        << "            <AltiSol>" << meanZ << "</AltiSol>\n"
+        << "            <Profondeur>" << meanDepth << "</Profondeur>\n"
         << "            <KnownConv>eConvApero_DistM2C</KnownConv>\n"
         << "            <Centre>" << c(0) << " " << c(1) << " " << c(2) << "</Centre>\n"
         << "            <IncCentre>1 1 1</IncCentre>\n"
