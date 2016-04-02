@@ -13,6 +13,8 @@
 #include "openMVG/cameras/cameras.hpp"
 #include "openMVG/sfm/sfm_data_filters.hpp"
 #include "openMVG/sfm/pipelines/localization/SfM_Localizer.hpp"
+#include "openMVG/sfm/sfm_data_utils.hpp"
+
 
 #include "openMVG/matching/indMatch.hpp"
 #include "openMVG/multiview/essential.hpp"
@@ -142,6 +144,9 @@ bool SequentialSfMReconstructionEngine::Process() {
     }
     ++resectionGroupIndex;
   }
+  SplitSharedIntrinsics(this->sfm_data_);
+  BundleAdjustment();
+
   // Ensure there is no remaining outliers
   badTrackRejector(4.0, 0);
 
