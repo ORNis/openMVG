@@ -61,5 +61,26 @@ void GroupSharedIntrinsics(SfM_Data & sfm_data)
   }
 }
 
+void SplitSharedIntrinsics(SfM_Data & sfm_data) {
+  Views & views = sfm_data.views;
+  Intrinsics & intrinsics = sfm_data.intrinsics;
+
+  Intrinsics intrinsics_updated;
+  IndexT newIntrinsicId = 0;
+  for(Views::const_iterator iterViews = views.begin();
+      iterViews != views.end();
+      ++iterViews, ++newIntrinsicId)
+  {
+    View * v = iterViews->second.get();
+    if (v->id_intrinsic == UndefinedIndexT) continue;
+    std::shared_ptr<cameras::IntrinsicBase> intrinsic_cpy;
+    intrinsic_cpy.reset(intrinsics.at(v->id_intrinsic)->clone());
+    intrinsics_updated[newIntrinsicId] = intrinsic_cpy;
+    v->id_intrinsic = newIntrinsicId;
+  }
+
+  intrinsics.swap(intrinsics_updated);
+}
+
 } // namespace sfm
 } // namespace openMVG
