@@ -28,7 +28,6 @@ int main(int argc, char **argv)
   std::string sOutFile = "";
 
   cmd.add( make_option('i', sSfM_Data_Filename, "input_file") );
-  cmd.add( make_option('m', sMatchesDir, "match_dir") );
   cmd.add( make_option('f', sMatchFile, "match_file") );
   cmd.add( make_option('o', sOutFile, "output_file") );
   cmd.add( make_switch('s', "split"));
@@ -39,8 +38,6 @@ int main(int argc, char **argv)
   } catch(const std::string& s) {
     std::cerr << "Usage: " << argv[0] << '\n'
     << "[-i|--input_file] path to a SfM_Data scene\n"
-    << "[-m|--match_dir] path to the features and descriptors that "
-    <<    "corresponds to the provided SfM_Data scene\n"
     << "[-o|--output_file] file where the output data will be stored "
     <<    "(i.e. path/sfm_data_structure.bin)\n"
     << "\n[Optional]\n"
