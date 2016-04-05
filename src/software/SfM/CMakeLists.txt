@@ -110,6 +110,14 @@ TARGET_LINK_LIBRARIES(openMVG_main_ComputeStructureFromKnownPoses
   stlplus
   )
 
+ADD_EXECUTABLE(openMVG_main_MakeAdditionalBA main_MakeAdditionalBA.cpp)
+TARGET_LINK_LIBRARIES(openMVG_main_MakeAdditionalBA
+  openMVG_system
+  openMVG_features
+  openMVG_sfm
+  stlplus
+  )
+
 ADD_EXECUTABLE(openMVG_main_ComputeSfM_DataColor main_ComputeSfM_DataColor.cpp)
 TARGET_LINK_LIBRARIES(openMVG_main_ComputeSfM_DataColor
   openMVG_system
@@ -130,6 +138,8 @@ SET_PROPERTY(TARGET openMVG_main_FrustumFiltering PROPERTY FOLDER OpenMVG/softwa
 INSTALL(TARGETS openMVG_main_FrustumFiltering DESTINATION bin/)
 SET_PROPERTY(TARGET openMVG_main_ComputeStructureFromKnownPoses PROPERTY FOLDER OpenMVG/software)
 INSTALL(TARGETS openMVG_main_ComputeStructureFromKnownPoses DESTINATION bin/)
+SET_PROPERTY(TARGET openMVG_main_MakeAdditionalBA PROPERTY FOLDER OpenMVG/software)
+INSTALL(TARGETS openMVG_main_MakeAdditionalBA DESTINATION bin/)
 SET_PROPERTY(TARGET openMVG_main_ComputeSfM_DataColor PROPERTY FOLDER OpenMVG/software)
 INSTALL(TARGETS openMVG_main_ComputeSfM_DataColor DESTINATION bin/)
 
