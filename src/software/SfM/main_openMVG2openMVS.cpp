@@ -8,6 +8,7 @@
 
 #include "openMVG/sfm/sfm.hpp"
 #include "openMVG/image/image.hpp"
+#include "openMVG/sfm/sfm_data_filters.hpp"
 
 #define _USE_EIGEN
 #include "InterfaceMVS.h"
@@ -26,6 +27,7 @@ using namespace openMVG::sfm;
 #include <cmath>
 #include <iterator>
 #include <iomanip>
+#include <regex>
 
 bool exportToOpenMVS(
   const SfM_Data & sfm_data,
@@ -201,10 +203,12 @@ int main(int argc, char *argv[])
   std::string sSfM_Data_Filename;
   std::string sOutFile = "scene.mvs";
   std::string sOutDir = "undistorted_images";
+  std::string sRegex = "";
 
   cmd.add( make_option('i', sSfM_Data_Filename, "sfmdata") );
   cmd.add( make_option('o', sOutFile, "outfile") );
   cmd.add( make_option('d', sOutDir, "outdir") );
+  cmd.add( make_option('r', sRegex, "regex") );
 
   try {
       if (argc == 1) throw std::string("Invalid command line parameter.");
@@ -214,6 +218,8 @@ int main(int argc, char *argv[])
       << "[-i|--sfmdata] filename, the SfM_Data file to convert\n"
       << "[-o|--outfile] OpenMVS scene file\n"
       << "[-d|--outdir] undistorted images path\n"
+      << "[OPTIONAL]\n"
+      << "[-r|--regex] regex\n"
       << std::endl;
 
       std::cerr << s << std::endl;
@@ -226,6 +232,11 @@ int main(int argc, char *argv[])
     std::cerr << std::endl
       << "The input SfM_Data file \""<< sSfM_Data_Filename << "\" cannot be read." << std::endl;
     return EXIT_FAILURE;
+  }
+
+  if (sRegex!="") {
+    std::regex re = std::regex(sRegex);
+    Filter_view_by_regex(sfm_data, re);
   }
 
   if (exportToOpenMVS(sfm_data, sOutFile, sOutDir))
