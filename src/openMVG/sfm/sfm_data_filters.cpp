@@ -33,6 +33,73 @@ std::set<IndexT> Get_Valid_Views
   return valid_idx;
 }
 
+// Filter view by image name based on a regex
+// Return the number of removed view
+IndexT Filter_view_by_regex(
+  SfM_Data & sfm_data,
+  const std::regex & re
+)
+{
+  std::set<IndexT> invalid_idx;
+  std::set<IndexT> valid_pose_idx;
+  std::set<IndexT> valid_intrinsic_idx;
+  Views::iterator iterView = sfm_data.views.begin();
+  while (iterView != sfm_data.views.end())
+  {
+    View * v = iterView->second.get();
+    if(!std::regex_match(v->s_Img_path, re)) {
+      std::cout << v->s_Img_path << std::endl;
+      invalid_idx.insert(v->id_view);
+      iterView = sfm_data.views.erase(iterView);
+    } else {
+      valid_pose_idx.insert(v->id_pose);
+      valid_intrinsic_idx.insert(v->id_intrinsic);
+      ++iterView;
+    }
+  }
+
+  // Remove intrinsics
+  Intrinsics::iterator iterIntr = sfm_data.intrinsics.begin();
+  while(iterIntr != sfm_data.intrinsics.end()) {
+    if(valid_intrinsic_idx.find(iterIntr->first) != valid_intrinsic_idx.end()) {
+      ++iterIntr;
+    } else {
+      iterIntr = sfm_data.intrinsics.erase(iterIntr);
+    }
+  }
+
+  // Remove pose
+  Poses::iterator iterPose = sfm_data.poses.begin();
+  while(iterPose!= sfm_data.poses.end()) {
+    if(valid_pose_idx.find(iterPose->first) != valid_pose_idx.end()) {
+      ++iterPose;
+    } else {
+      iterPose = sfm_data.poses.erase(iterPose);
+    }
+  }
+
+  // Remove tracks
+  Landmarks::iterator iterTracks = sfm_data.structure.begin();
+  while(iterTracks != sfm_data.structure.end()){
+    Observations & obs = iterTracks->second.obs;
+    Observations::iterator itObs = obs.begin();
+    while (itObs != obs.end()) {
+      const IndexT viewId= itObs->first;
+      if(invalid_idx.find(viewId) != invalid_idx.end()) {
+        itObs = obs.erase(itObs);
+      } else {
+        ++itObs;
+      }
+    }
+    if (obs.empty()) {
+      iterTracks = sfm_data.structure.erase(iterTracks);
+    }
+    else
+      ++iterTracks;
+  }
+  return invalid_idx.size();
+}
+
 // Remove tracks that have a small angle (tracks with tiny angle leads to instable 3D points)
 // Return the number of removed tracks
 IndexT RemoveOutliers_PixelResidualError
@@ -70,7 +137,7 @@ IndexT RemoveOutliers_PixelResidualError
   return outlier_count;
 }
 
-// Remove tracks that have a small angle (tracks with tiny angle leads to instable 3D points)
+// Remove tracks that have a small angle (tracks with tiny angle leads to unstable 3D points)
 // Return the number of removed tracks
 IndexT RemoveOutliers_AngleError
 (

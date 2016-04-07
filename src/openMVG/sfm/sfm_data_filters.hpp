@@ -11,6 +11,8 @@
 #include <set>
 #include "openMVG/types.hpp"
 
+#include <regex>
+
 namespace openMVG {
 namespace sfm {
 
@@ -39,6 +41,12 @@ Pair_Set Pair_filter
   }
   return kept_pairs;
 }
+
+// Filter view by image name based on a regex
+IndexT Filter_view_by_regex(
+  SfM_Data & sfm_data,
+  const std::regex & re
+);
 
 // Remove tracks that have a small angle (tracks with tiny angle leads to instable 3D points)
 // Return the number of removed tracks
