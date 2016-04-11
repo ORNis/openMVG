@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
   }
 
   if (sRegex!="") {
-    std::regex re = std::regex(sRegex);
+    const std::regex re = std::regex(sRegex);
     Filter_view_by_regex(sfm_data, re);
   }
 

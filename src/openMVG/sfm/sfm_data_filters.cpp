@@ -34,7 +34,7 @@ std::set<IndexT> Get_Valid_Views
 }
 
 // Filter view by image name based on a regex
-// Return the number of removed view
+// Return the number of removed views
 IndexT Filter_view_by_regex(
   SfM_Data & sfm_data,
   const std::regex & re
@@ -68,7 +68,7 @@ IndexT Filter_view_by_regex(
     }
   }
 
-  // Remove pose
+  // Remove poses
   Poses::iterator iterPose = sfm_data.poses.begin();
   while(iterPose!= sfm_data.poses.end()) {
     if(valid_pose_idx.find(iterPose->first) != valid_pose_idx.end()) {
