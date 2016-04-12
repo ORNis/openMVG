@@ -22,14 +22,14 @@ int main(int argc, char **argv)
 
   CmdLine cmd;
 
+
   std::string sSfM_Data_Filename;
-  std::string sMatchesDir;
-  std::string sMatchFile;
   std::string sOutFile = "";
+  float weight = 0.0f;
 
   cmd.add( make_option('i', sSfM_Data_Filename, "input_file") );
-  cmd.add( make_option('f', sMatchFile, "match_file") );
   cmd.add( make_option('o', sOutFile, "output_file") );
+  cmd.add( make_option('w', weight, "weight") );
   cmd.add( make_switch('s', "split"));
 
   try {
@@ -40,6 +40,7 @@ int main(int argc, char **argv)
     << "[-i|--input_file] path to a SfM_Data scene\n"
     << "[-o|--output_file] file where the output data will be stored "
     <<    "(i.e. path/sfm_data_structure.bin)\n"
+    << "[-w|--weight] weight of the CGPs in the BA (0.0 by default: GCPs are not used)\n "
     << "\n[Optional]\n"
     << "[-s|--split] (switch) split grouped intrinsic before BA (OFF by default)\n"
     << std::endl;
@@ -47,6 +48,7 @@ int main(int argc, char **argv)
     std::cerr << s << std::endl;
     return EXIT_FAILURE;
   }
+
 
   // Load input SfM_Data scene
   SfM_Data sfm_data;
@@ -71,13 +73,22 @@ int main(int argc, char **argv)
   std::cout << "Bundle adjustment..." << std::endl;
 
   Bundle_Adjustment_Ceres bundle_adjustment_obj;
+  Control_Point_Parameter control_point_opt;
+
+  if(weight > 0.0f) {
+    control_point_opt.bUse_control_points = true;
+    control_point_opt.weight = weight;
+  }
+
   bundle_adjustment_obj.Adjust
     (
       sfm_data,
       Optimize_Options(
         cameras::Intrinsic_Parameter_Type::ADJUST_ALL,
         Extrinsic_Parameter_Type::ADJUST_ALL,
-        Structure_Parameter_Type::ADJUST_ALL)
+        Structure_Parameter_Type::ADJUST_ALL,
+        control_point_opt
+      )
     );
 
   if (stlplus::extension_part(sOutFile) != "ply") {

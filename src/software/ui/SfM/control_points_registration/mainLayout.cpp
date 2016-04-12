@@ -331,6 +331,7 @@ void MainWindow::registerProject()
     }
   }
 
+  /*
   //---
   // Bundle adjustment with GCP
   //---
@@ -355,6 +356,7 @@ void MainWindow::registerProject()
       msgBox.exec();
     }
   }
+   */
 }
 
 MainWindow::MainWindow
