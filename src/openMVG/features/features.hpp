@@ -17,6 +17,8 @@
 #include "openMVG/features/regions_factory.hpp"
 #include "openMVG/features/image_describer.hpp"
 #include "openMVG/features/image_describer_akaze.hpp"
+#include "image_describer_homography_decorator.hpp"
+#include "image_describer_scaling_decorator.hpp"
 #include "openMVG/features/tbmr/tbmr.hpp"
 #include "openMVG/features/mser/mser.hpp"
 #include "openMVG/features/fast/fast_detector.hpp"

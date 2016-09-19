@@ -11,6 +11,8 @@
 #include "openMVG/numeric/numeric.h"
 #include "openMVG/features/feature.hpp"
 #include "openMVG/features/descriptor.hpp"
+#include "openMVG/image/image.hpp"
+//TODO: applyHomo should not be in image namespace
 #include "openMVG/matching/metric.hpp"
 #include "cereal/types/vector.hpp"
 #include <string>
@@ -56,6 +58,8 @@ public:
   //-- Assume that a region can always be represented at least by a 2D positions
   virtual PointFeatures GetRegionsPositions() const = 0;
   virtual Vec2 GetRegionPosition(size_t i) const = 0;
+  /// Apply a projective transformation H to regions and eventually filter ones that lay outside [O, xMax[ [0, yMax[
+  virtual void ApplyTransformToRegionPositions(const Mat3& H, int xMax, int yMax) = 0;
 
   /// Return the number of defined regions
   virtual size_t RegionCount() const = 0;
@@ -137,7 +141,32 @@ public:
     return Vec2f(vec_feats_[i].coords()).cast<double>();
   }
 
-  /// Return the number of defined regions
+  void ApplyTransformToRegionPositions(const Mat3& H, int xMax, int yMax) override
+  {
+    typedef typename FeatsT::iterator IterFeats;
+    typedef typename DescsT::iterator IterDescs;
+    IterFeats itFeat = vec_feats_.begin();
+    IterDescs itDesc = vec_descs_.begin();
+    while(itFeat !=  vec_feats_.end()) {
+      Vec2 coords =  Vec2f(itFeat->coords()).cast<double>();
+      image::ApplyH_AndCheckOrientation(H, coords.x(), coords.y());
+      // Filter the points that lay outside the originalImage
+      if(coords.x() >= 0
+         && coords.x() < xMax
+         && coords.y() >= 0
+         && coords.y() < yMax)
+      {
+        itFeat->coords() = coords.cast<float>();
+        ++itFeat;
+        ++itDesc;
+      } else {
+        itFeat = vec_feats_.erase(itFeat);
+        itDesc = vec_descs_.erase(itDesc);
+      }
+    }
+  }
+
+    /// Return the number of defined regions
   size_t RegionCount() const override {return vec_feats_.size();}
 
   /// Mutable and non-mutable FeatureT getters.
@@ -249,6 +278,31 @@ public:
   Vec2 GetRegionPosition(size_t i) const override
   {
     return Vec2f(vec_feats_[i].coords()).cast<double>();
+  }
+
+  void ApplyTransformToRegionPositions(const Mat3& H, int xMax, int yMax) override
+  {
+    typedef typename FeatsT::iterator IterFeats;
+    typedef typename DescsT::iterator IterDescs;
+    IterFeats itFeat = vec_feats_.begin();
+    IterDescs itDesc = vec_descs_.begin();
+    while(itFeat !=  vec_feats_.end()) {
+      Vec2 coords =  Vec2f(itFeat->coords()).cast<double>();
+      image::ApplyH_AndCheckOrientation(H, coords.x(), coords.y());
+      // Filter the points that lay outside the originalImage
+      if(coords.x() >= 0
+         && coords.x() < xMax
+         && coords.y() >= 0
+         && coords.y() < yMax)
+      {
+        itFeat->coords() = coords.cast<float>();
+        ++itFeat;
+        ++itDesc;
+      } else {
+        itFeat = vec_feats_.erase(itFeat);
+        itDesc = vec_descs_.erase(itDesc);
+      }
+    }
   }
 
   /// Return the number of defined regions

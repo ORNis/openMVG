@@ -60,6 +60,7 @@ int main(int argc, char **argv)
   std::string sImage_Describer_Method = "SIFT";
   bool bForce = false;
   std::string sFeaturePreset = "";
+  double subsampleFactor;
 #ifdef OPENMVG_USE_OPENMP
   int iNumThreads = 0;
 #endif
@@ -71,6 +72,7 @@ int main(int argc, char **argv)
   cmd.add( make_option('m', sImage_Describer_Method, "describerMethod") );
   cmd.add( make_option('u', bUpRight, "upright") );
   cmd.add( make_option('f', bForce, "force") );
+  cmd.add( make_option('s', subsampleFactor, "subsample") ); //FIXME: a maxwidth mechanism may make more sense ?
   cmd.add( make_option('p', sFeaturePreset, "describerPreset") );
 
 #ifdef OPENMVG_USE_OPENMP
@@ -91,6 +93,7 @@ int main(int argc, char **argv)
       << "   SIFT (default),\n"
       << "   AKAZE_FLOAT: AKAZE with floating point descriptors,\n"
       << "   AKAZE_MLDB:  AKAZE with binary descriptors\n"
+      << "[-s|--subsample] Subsample images by a factor ]0,1[\n"
       << "[-u|--upright] Use Upright feature 0 or 1\n"
       << "[-p|--describerPreset]\n"
       << "  (used to control the Image_describer configuration):\n"
@@ -112,6 +115,7 @@ int main(int argc, char **argv)
             << "--outdir " << sOutDir << std::endl
             << "--describerMethod " << sImage_Describer_Method << std::endl
             << "--upright " << bUpRight << std::endl
+            << "--subsample " << subsampleFactor << std::endl
             << "--describerPreset " << (sFeaturePreset.empty() ? "NORMAL" : sFeaturePreset) << std::endl
             << "--force " << bForce << std::endl
 #ifdef OPENMVG_USE_OPENMP
@@ -209,6 +213,10 @@ int main(int argc, char **argv)
       }
     }
 
+    if(subsampleFactor > 0 && subsampleFactor < 1.0) {
+      image_describer.reset(new Scaling_Decorator_Image_describer(std::move(image_describer), subsampleFactor));
+    }
+
     // Export the used Image_describer and region type for:
     // - dynamic future regions computation and/or loading
     {
@@ -216,11 +224,11 @@ int main(int argc, char **argv)
       if (!stream.is_open())
         return false;
 
-      cereal::JSONOutputArchive archive(stream);
-      archive(cereal::make_nvp("image_describer", image_describer));
+      //cereal::JSONOutputArchive archive(stream);
+      //archive(cereal::make_nvp("image_describer", image_describer)); //FIXME
       std::unique_ptr<Regions> regionsType;
       image_describer->Allocate(regionsType);
-      archive(cereal::make_nvp("regions_type", regionsType));
+      //archive(cereal::make_nvp("regions_type", regionsType));
     }
   }
 

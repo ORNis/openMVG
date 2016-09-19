@@ -25,7 +25,7 @@ namespace image
 * @retval true if H is orientation preserving around the point.
 * @retval false if H is non orientation preserving
 */
-bool ApplyH_AndCheckOrientation( const Mat3 &H, double &x, double &y )
+inline bool ApplyH_AndCheckOrientation( const Mat3 &H, double &x, double &y )
 {
   Vec3 X( x, y, 1.0 );
   X = H * X;

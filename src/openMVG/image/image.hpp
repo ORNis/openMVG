@@ -29,6 +29,7 @@
 #include "openMVG/image/image_convolution.hpp"
 #include "openMVG/image/image_filtering.hpp"
 #include "openMVG/image/image_resampling.hpp"
+#include "openMVG/image/image_warping.hpp"
 #include "openMVG/image/image_diffusion.hpp"
 
 namespace openMVG
