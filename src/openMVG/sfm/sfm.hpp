@@ -44,4 +44,9 @@
 #include "openMVG/sfm/pipelines/sfm_robust_model_estimation.hpp"
 #include "openMVG/sfm/pipelines/structure_from_known_poses/structure_estimator.hpp"
 
+//---------------------
+// SfM Tracks Selection
+//---------------------
+#include "openMVG/sfm/tracks_selection/sfm_data_tracks_selection.hpp"
+
 #endif // OPENMVG_SFM_SFM_HPP
