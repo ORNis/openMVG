@@ -25,7 +25,7 @@ SfM_Data_Cui_Tracks_Selection::SfM_Data_Cui_Tracks_Selection(const SfM_Data &sfm
 Landmarks SfM_Data_Cui_Tracks_Selection::select() {
 
   initAdjascentMap();
-  buildTrackStatitic();
+  buildTrackStatistic();
   buildViewStatistic();
 
   std::set<IndexT> selected_tracks;
@@ -145,7 +145,7 @@ void SfM_Data_Cui_Tracks_Selection::initAdjascentMap()
   }
 }
 
-void SfM_Data_Cui_Tracks_Selection::buildTrackStatitic()
+void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
 {
   // clean up previous statistics
   reproj_invertedList_.clear();
@@ -179,7 +179,7 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatitic()
       const View *obs_view = sfm_data_.GetViews().at(obs_view_id).get();
       const Pose3 &obs_pose = sfm_data_.GetPoseOrDie(obs_view);
       const cameras::IntrinsicBase *obs_intrinsics = sfm_data_.GetIntrinsics().at(obs_view->id_intrinsic).get();
-      const features::PointFeature & obs_feature = features_provider_->getFeatures(obs_view_id).at(curr_obs.second.id_feat);
+      //const features::PointFeature & obs_feature = features_provider_->getFeatures(obs_view_id).at(curr_obs.second.id_feat);
       const double scale = 1.0;
       // features_provider_->getScales(obs_view_id).at(curr_obs.second.id_feat);
       //TODO: scales handling is implemented in EgoSfM branch but it's not elegant (see slack discussion about that)

@@ -34,7 +34,7 @@ struct TrackStats {
     // Id of the track (id in the Landmarks map)
     IndexT id = 0;
 
-    // Number of obs : it is basically visibilit_set.size() but we cache it
+    // Number of obs : it is basically visibility_set.size() but we cache it
     size_t size = 0;
 
     // Scale of the feature

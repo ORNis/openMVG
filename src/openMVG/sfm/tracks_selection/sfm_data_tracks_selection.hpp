@@ -71,7 +71,7 @@ private:
 
     void initAdjascentMap();
 
-    void buildTrackStatitic();
+    void buildTrackStatistic();
 
     void buildViewStatistic();
 
@@ -95,6 +95,7 @@ private:
     // a valid track must have a cost < max_image_size * validity_cost_threshold_
     double validity_cost_threshold_ = 0.3;
 };
+
 
 } // namespace sfm
 } // namespace openMVG

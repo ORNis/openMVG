@@ -11,6 +11,7 @@
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
 #include "openMVG/sfm/pipelines/sequential/SfmSceneInitializer.hpp"
+#include "openMVG/sfm/tracks_selection/sfm_data_tracks_selection.hpp"
 #include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/sfm/sfm_data_BA.hpp"
 #include "openMVG/sfm/sfm_data_BA_ceres.hpp"
@@ -18,6 +19,7 @@
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/sfm/sfm_data_triangulation.hpp"
 #include "openMVG/stl/stl.hpp"
+
 
 #include "third_party/histogram/histogram.hpp"
 #include "third_party/htmlDoc/htmlDoc.hpp"
@@ -27,6 +29,7 @@
 #include <ceres/types.h>
 #include <functional>
 #include <iostream>
+#include <openMVG/graph/graph_builder.hpp>
 
 namespace openMVG {
 namespace sfm {
@@ -146,6 +149,8 @@ bool SequentialSfMReconstructionEngine2::Process() {
   //--
   IndexT resection_round = 0;
 
+  graph::indexedGraph fullGraph(matches_provider_->getPairs());
+
   // Incrementally estimate the pose of the cameras based on a confidence score.
   // The confidence score is based on the track_inlier_ratio.
   // First the camera with the most of 2D-3D overlap are added then we add
@@ -155,10 +160,18 @@ bool SequentialSfMReconstructionEngine2::Process() {
   {
     while (AddingMissingView(track_inlier_ratio))
     {
+
       // Create new 3D points
       Triangulation();
+      SfM_Data_Cui_Tracks_Selection ts(sfm_data_, fullGraph, nullptr);
+      ts.setNumMSTRuns(50);
+      Landmarks selected = ts.select();
+      std::swap(selected, sfm_data_.structure);
       // Adjust the scene
       BundleAdjustment();
+      std::swap(selected, sfm_data_.structure);
+      Triangulation();
+
       // Remove unstable triangulations and camera poses
       RemoveOutliers_AngleError(sfm_data_, 2.0);
       RemoveOutliers_PixelResidualError(sfm_data_, 4.0);
