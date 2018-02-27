@@ -528,7 +528,7 @@ bool Stellar_Solver::Optimize
     {
       const tracks::submapTrack & track = tracks_it.second;
 
-      // Check if the track is observed by more than 2 differnt pose ids
+      // Check if the track is observed by more than 2 different pose ids
       {
         std::set<IndexT> poses_id;
         for (const auto & track_it : track)
