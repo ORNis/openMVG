@@ -43,7 +43,7 @@ class SfM_Data_Cui_Tracks_Selection : SfM_Data_Tracks_Selection_Basis {
 public:
     SfM_Data_Cui_Tracks_Selection(const SfM_Data &sfm_data,
                                   const graph::indexedGraph &epipolar_graph,
-                                  const std::shared_ptr<Features_Provider> & features_provider);
+                                  const std::shared_ptr<Features_Provider> & features_provide);
 
     Landmarks select() override;
 

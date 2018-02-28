@@ -160,17 +160,45 @@ bool SequentialSfMReconstructionEngine2::Process() {
   {
     while (AddingMissingView(track_inlier_ratio))
     {
+      Landmarks selected_tracks;
 
-      // Create new 3D points
-      Triangulation();
-      SfM_Data_Cui_Tracks_Selection ts(sfm_data_, fullGraph, nullptr);
-      ts.setNumMSTRuns(50);
-      Landmarks selected = ts.select();
-      std::swap(selected, sfm_data_.structure);
-      // Adjust the scene
-      BundleAdjustment();
-      std::swap(selected, sfm_data_.structure);
-      Triangulation();
+      while(true)
+      {
+        // Triangulate
+        Triangulation();
+
+        std::set<IndexT> prev_selected_tracks_ids, curr_selected_tracks_ids;
+        std::vector<IndexT > intersection_ids, union_ids;
+
+        std::transform(selected_tracks.cbegin(), selected_tracks.cend(),
+                       std::inserter(prev_selected_tracks_ids, prev_selected_tracks_ids.begin()),
+                       stl::RetrieveKey());
+
+        SfM_Data_Cui_Tracks_Selection ts(sfm_data_, fullGraph, nullptr);
+        ts.setNumMSTRuns(100);
+        selected_tracks = ts.select();
+
+        std::transform(selected_tracks.cbegin(), selected_tracks.cend(),
+                       std::inserter(curr_selected_tracks_ids, curr_selected_tracks_ids.begin()),
+                       stl::RetrieveKey());
+
+        std::set_intersection(curr_selected_tracks_ids.begin(), curr_selected_tracks_ids.end(),
+                              prev_selected_tracks_ids.begin(), prev_selected_tracks_ids.end(), std::back_inserter(intersection_ids));
+
+        std::set_union(curr_selected_tracks_ids.begin(), curr_selected_tracks_ids.end(),
+                      prev_selected_tracks_ids.begin(), prev_selected_tracks_ids.end(), std::back_inserter(union_ids));
+
+        double intersection_over_union = double(intersection_ids.size()) / double(union_ids.size());
+        std::cout << "intersection over union score" << intersection_over_union << std::endl;
+        if(intersection_over_union >= 0.9)
+          break;
+
+        std::swap(selected_tracks, sfm_data_.structure);
+        // Adjust the scene
+        BundleAdjustment(10);
+        std::swap(selected_tracks, sfm_data_.structure);
+      }
+
 
       // Remove unstable triangulations and camera poses
       RemoveOutliers_AngleError(sfm_data_, 2.0);
@@ -187,7 +215,7 @@ bool SequentialSfMReconstructionEngine2::Process() {
   //--
   //- 3. Final bundle Adjustment
   //--
-  BundleAdjustment();
+  BundleAdjustment(500);
 
   //-- Reconstruction done.
   //-- Display some statistics
@@ -504,9 +532,10 @@ bool SequentialSfMReconstructionEngine2::AddingMissingView
   return (pose_after != pose_before);
 }
 
-bool SequentialSfMReconstructionEngine2::BundleAdjustment()
+bool SequentialSfMReconstructionEngine2::BundleAdjustment(unsigned int max_num_iterations)
 {
   Bundle_Adjustment_Ceres::BA_Ceres_options options;
+  options.max_num_iterations_ = max_num_iterations;
   if ( sfm_data_.GetPoses().size() > 100 &&
       (ceres::IsSparseLinearAlgebraLibraryTypeAvailable(ceres::SUITE_SPARSE) ||
        ceres::IsSparseLinearAlgebraLibraryTypeAvailable(ceres::CX_SPARSE) ||

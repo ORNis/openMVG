@@ -30,6 +30,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
 
   std::set<IndexT> selected_tracks;
   std::cout << "MST computation" << std::endl;
+  system::Timer timer;
   double curr_percent_selected = 0.0;
   for (int curr_iter_mst = 0; curr_iter_mst < num_trees_ || curr_percent_selected <= percent_selected_; ++curr_iter_mst) {
     size_t num_views = view_stats_.size();
@@ -67,7 +68,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
             if (valid_observed_views.empty()) // the track cover none of the valid_ngb_views of the curr_view
               continue;
 
-            //diff valid_views and selected_views;
+            // diff valid_views and selected_views;
             std::vector<IndexT> new_views;
             std::set_difference(std::begin(valid_observed_views), std::end(valid_observed_views),
                                 std::begin(selected_views), std::end(selected_views),
@@ -76,7 +77,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
             if (new_views.empty()) // the valid_views
               continue;
 
-            //The track is valid, insert the track and the new views
+            // The track is valid, insert the track and the new views
             selected_tracks.insert(curr_track->id);
             curr_track->selected = true;
             for (const auto &nv : new_views) {
@@ -86,12 +87,11 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
                                               [&nv](std::pair<double, IndexT> &v_stat) -> bool {
                                                   return v_stat.second == nv;
                                               });
-              //TODO: make more checks
+              // TODO: make more checks
               next_layer.push_back(*nv_viewstat);
             }
-
           }
-          //TODO: the break semantic is maybe not the best, but for now it works
+          // TODO: the break semantic is maybe not the best, but for now it works
           if (valid_ngb_views.empty())
             break;
 
@@ -104,11 +104,11 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
       }
       std::swap(curr_layer, next_layer);
     }
-    curr_percent_selected = selected_tracks.size() / static_cast<double>(sfm_data_.structure.size());
+    curr_percent_selected = selected_tracks.size() / static_cast<double>(sfm_data_.structure.size()) * 100;
 
   }
-  std::cout << "-- End MST computation" << std::endl;
-  std::cout << " --> num selected tracks " << selected_tracks.size() << std::endl;
+  std::cout << "-- End MST computation in " << timer.elapsedMs() << " ms" << "\n";
+  std::cout << " --> num selected tracks " << selected_tracks.size() << "\n";
   std::cout << " --> % selected tracks " << curr_percent_selected << std::endl;
 
   Landmarks result;
@@ -188,7 +188,6 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
 
       max_size_image.push_back(std::max(obs_view->ui_height, obs_view->ui_width));
 
-      //TODO: we need to dynamic cast here
       feature_scales.push_back(scale);
 
 
@@ -223,7 +222,7 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
 
 
 void SfM_Data_Cui_Tracks_Selection::buildViewStatistic() {
-  std::cout << "View stats computation" << std::endl;
+  std::cout << "View statistics computation" << std::endl;
   // Compute viewStats
   for (const auto &reprojIL : reproj_invertedList_) {
     size_t num_adj_views = adjascent_map_[reprojIL.first].size();
@@ -233,7 +232,7 @@ void SfM_Data_Cui_Tracks_Selection::buildViewStatistic() {
   }
   // sort viewstats by cost
   std::sort(std::begin(view_stats_), std::end(view_stats_));
-  std::cout << "-- End View stats computation" << std::endl;
+  std::cout << "-- End View statistics computation" << std::endl;
 }
 
 

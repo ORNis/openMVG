@@ -68,7 +68,7 @@ struct TrackStatPointerComparator {
 // view_id, set of TrackStat
 using TracksInvertedList = std::map<IndexT, std::set<std::shared_ptr<TrackStats>, TrackStatPointerComparator> >;
 
-// view_id, reprojetction_error
+// view_id, reprojection_error
 using ReprojectionInvertedList = std::map<IndexT, std::vector<double> >; //TODO: per view reproj error
 
 // view_id & cost
