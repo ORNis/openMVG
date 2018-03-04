@@ -162,7 +162,8 @@ bool SequentialSfMReconstructionEngine2::Process() {
     {
       Landmarks selected_tracks;
 
-      while(true)
+      double intersection_over_union = 0.;
+      while(intersection_over_union < 0.9) //TODO: it's not clear if we do one last BA after "convergence" or not...
       {
         // Triangulate
         Triangulation();
@@ -174,31 +175,27 @@ bool SequentialSfMReconstructionEngine2::Process() {
                        std::inserter(prev_selected_tracks_ids, prev_selected_tracks_ids.begin()),
                        stl::RetrieveKey());
 
-        SfM_Data_Cui_Tracks_Selection ts(sfm_data_, fullGraph, nullptr);
-        ts.setNumMSTRuns(100);
+        SfM_Data_Batched_Tracks_Selection ts(sfm_data_);
         selected_tracks = ts.select();
 
         std::transform(selected_tracks.cbegin(), selected_tracks.cend(),
                        std::inserter(curr_selected_tracks_ids, curr_selected_tracks_ids.begin()),
                        stl::RetrieveKey());
 
-        std::set_intersection(curr_selected_tracks_ids.begin(), curr_selected_tracks_ids.end(),
-                              prev_selected_tracks_ids.begin(), prev_selected_tracks_ids.end(), std::back_inserter(intersection_ids));
+        std::set_intersection(curr_selected_tracks_ids.cbegin(), curr_selected_tracks_ids.cend(),
+                              prev_selected_tracks_ids.cbegin(), prev_selected_tracks_ids.cend(), std::back_inserter(intersection_ids));
 
-        std::set_union(curr_selected_tracks_ids.begin(), curr_selected_tracks_ids.end(),
-                      prev_selected_tracks_ids.begin(), prev_selected_tracks_ids.end(), std::back_inserter(union_ids));
+        std::set_union(curr_selected_tracks_ids.cbegin(), curr_selected_tracks_ids.cend(),
+                      prev_selected_tracks_ids.cbegin(), prev_selected_tracks_ids.cend(), std::back_inserter(union_ids));
 
-        double intersection_over_union = double(intersection_ids.size()) / double(union_ids.size());
-        std::cout << "intersection over union score" << intersection_over_union << std::endl;
-        if(intersection_over_union >= 0.9)
-          break;
+        intersection_over_union = double(intersection_ids.size()) / double(union_ids.size());
+        std::cout << "intersection over union score " << intersection_over_union << std::endl;
 
         std::swap(selected_tracks, sfm_data_.structure);
         // Adjust the scene
         BundleAdjustment(10);
         std::swap(selected_tracks, sfm_data_.structure);
       }
-
 
       // Remove unstable triangulations and camera poses
       RemoveOutliers_AngleError(sfm_data_, 2.0);

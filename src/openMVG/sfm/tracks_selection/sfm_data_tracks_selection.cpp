@@ -157,8 +157,8 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
   system::Timer timer;
   uint32_t count_gross_outliers = 0;
 
-  for (auto indexed_landmark = sfm_data_.structure.begin();
-       indexed_landmark != sfm_data_.structure.end(); ++indexed_landmark) {
+  for (auto indexed_landmark = sfm_data_.structure.cbegin();
+       indexed_landmark != sfm_data_.structure.cend(); ++indexed_landmark) {
 
     const auto &curr_landmark = indexed_landmark->second;
     const auto &observations = curr_landmark.obs;
@@ -167,8 +167,8 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
     size_t track_size = observations.size();
     std::vector<double> feature_scales;
     feature_scales.reserve(track_size);
-    std::vector<double> reprojections_errors;
-    reprojections_errors.reserve(track_size);
+    std::vector<double> reprojection_errors;
+    reprojection_errors.reserve(track_size);
     std::vector<uint32_t > max_size_image;
     max_size_image.reserve(track_size);
     std::set<IndexT> visibility_set;
@@ -182,24 +182,22 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
       //const features::PointFeature & obs_feature = features_provider_->getFeatures(obs_view_id).at(curr_obs.second.id_feat);
       const double scale = 1.0;
       // features_provider_->getScales(obs_view_id).at(curr_obs.second.id_feat);
-      //TODO: scales handling is implemented in EgoSfM branch but it's not elegant (see slack discussion about that)
-      // anyway it's needed in Batched Incremental SfM paper even if there is no reason why using scale of features is
-      // profitable in the Track Selection paper and not used in the Batched Incremental SfM one.
+      // TODO: scales handling is implemented in EgoSfM branch but it's not elegant (see slack discussion about that)
 
       max_size_image.push_back(std::max(obs_view->ui_height, obs_view->ui_width));
 
       feature_scales.push_back(scale);
 
-
       double reproj_error = obs_intrinsics->residual(obs_pose(curr_landmark.X), curr_obs.second.x).norm();
-      reprojections_errors.push_back(reproj_error);
+      reprojection_errors.push_back(reproj_error);
 
       reproj_invertedList_[obs_view_id].push_back(reproj_error);
 
       visibility_set.insert(obs_view_id);
     }
 
-    double cost = reprojection_cost_iterable(reprojections_errors, mu_);
+    double cost = reprojection_cost_iterable(reprojection_errors, mu_);
+
 
     if (cost < validity_cost_threshold_ * mean_iterable(max_size_image)) {
       std::shared_ptr<TrackStats> curr_track_stat(
@@ -234,6 +232,95 @@ void SfM_Data_Cui_Tracks_Selection::buildViewStatistic() {
   std::sort(std::begin(view_stats_), std::end(view_stats_));
   std::cout << "-- End View statistics computation" << std::endl;
 }
+
+
+
+
+SfM_Data_Batched_Tracks_Selection::SfM_Data_Batched_Tracks_Selection (const SfM_Data &sfm_data):SfM_Data_Tracks_Selection_Basis(sfm_data)
+{};
+
+
+void SfM_Data_Batched_Tracks_Selection::buildTrackStatistic() {
+  track_set_.clear();
+
+  std::cout << "\n"
+            << "Tracks statistics computation" << std::endl;
+  system::Timer timer;
+
+  //TODO: openMP
+  for (auto indexed_landmark = sfm_data_.structure.cbegin();
+       indexed_landmark != sfm_data_.structure.cend(); ++indexed_landmark) {
+
+    const auto &curr_landmark = indexed_landmark->second;
+    const auto &observations = curr_landmark.obs;
+
+    size_t track_size = observations.size();
+    std::vector<double> reprojection_errors;
+    reprojection_errors.reserve(track_size);
+    std::set<IndexT> visibility_set;
+
+    for (const auto &curr_obs : observations) {
+      const IndexT &obs_view_id = curr_obs.first;
+      const View *obs_view = sfm_data_.GetViews().at(obs_view_id).get();
+      const Pose3 &obs_pose = sfm_data_.GetPoseOrDie(obs_view);
+      const cameras::IntrinsicBase *obs_intrinsics = sfm_data_.GetIntrinsics().at(obs_view->id_intrinsic).get();
+      double reproj_error = obs_intrinsics->residual(obs_pose(curr_landmark.X), curr_obs.second.x).norm();
+      reprojection_errors.push_back(reproj_error);
+      visibility_set.insert(obs_view_id);
+    }
+
+    track_set_.emplace(TrackStats(indexed_landmark->first, track_size, mean_iterable(reprojection_errors),
+               visibility_set));
+  }
+  std::cout << "-- End Tracks statistics computation in " << timer.elapsedMs() << " ms" << "\n";
+
+}
+
+Landmarks SfM_Data_Batched_Tracks_Selection::select() {
+
+  buildTrackStatistic();
+
+  Landmarks selected_tracks;
+
+  std::cout << "Track selection computation" << std::endl;
+  system::Timer timer;
+
+  // map view_id => coverage
+  std::map<IndexT, uint32_t> view_coverage;
+
+  for(const auto & view : sfm_data_.views)
+  {
+    View * curr_view = view.second.get();
+    if(sfm_data_.IsPoseAndIntrinsicDefined(curr_view))
+    {
+      view_coverage[curr_view->id_view] = 0;
+    }
+  }
+
+  uint32_t num_view_covered = 0;
+  for(const auto & curr_track : track_set_) //TODO: while
+  {
+    bool selectable = false;
+    for(const auto & view_id : curr_track.visibility_set)
+    {
+      if(view_coverage[view_id] < coverage_)
+      {
+        selectable = true;
+        if (++view_coverage[view_id] >= coverage_)
+          ++num_view_covered;
+      }
+    }
+    if (selectable)
+      selected_tracks.insert({curr_track.id, sfm_data_.structure.at(curr_track.id)});
+    if (num_view_covered == view_coverage.size())
+      break;
+  }
+  std::cout << "-- End track selection in " << timer.elapsedMs() << " ms" << "\n";
+  std::cout << " --> num selected tracks " << selected_tracks.size() << std::endl;
+
+  return selected_tracks;
+}
+
 
 
 } // namespace sfm

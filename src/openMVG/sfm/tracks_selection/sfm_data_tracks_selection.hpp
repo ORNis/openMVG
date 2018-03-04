@@ -37,15 +37,17 @@ protected:
 };
 
 ///- Track Selection method exposed in:
-/// Cui H., Shen S, Hu. Z., Tracks Selection for Robust, Efficient and Scalable Large-Scale Structure from Motion. Pattern Recognition, 2017.
+/// Cui H., Shen S., Hu. Z., Tracks Selection for Robust, Efficient and Scalable Large-Scale Structure from Motion.
+/// Pattern Recognition, 2017.
 class SfM_Data_Cui_Tracks_Selection : SfM_Data_Tracks_Selection_Basis {
 
 public:
     SfM_Data_Cui_Tracks_Selection(const SfM_Data &sfm_data,
                                   const graph::indexedGraph &epipolar_graph,
-                                  const std::shared_ptr<Features_Provider> & features_provide);
+                                  const std::shared_ptr<Features_Provider> & features_provider);
 
     Landmarks select() override;
+
 
     void setValidityCostThreshold(const double threshold)
     {
@@ -86,16 +88,46 @@ private:
     /// Parameters
     // sigma multiplier
     double mu_ = 3.0;
+
     // number of mst run
     uint32_t num_trees_ = 30;
 
-    // alternative stop criterion
+    // alternative stop criterion (not in the paper)
     double percent_selected_ = 0.0;
 
     // a valid track must have a cost < max_image_size * validity_cost_threshold_
     double validity_cost_threshold_ = 0.3;
 };
 
+
+
+///- Track Selection method exposed in:
+/// Cui H., Shen S., Gao X., Hu. Z.,
+/// Batched Incremental Structure-from-Motion. International Conference on 3D Vision (3DV) 2017.
+class SfM_Data_Batched_Tracks_Selection : SfM_Data_Tracks_Selection_Basis {
+
+
+public:
+    SfM_Data_Batched_Tracks_Selection(const SfM_Data &sfm_data);
+
+    Landmarks select() override;
+
+    void setCoverage(const uint32_t coverage)
+    {
+        coverage_ = coverage;
+    }
+
+private:
+
+    void buildTrackStatistic();
+
+    /// parameters
+    // number of selected tracks per view
+    uint32_t coverage_ = 100;
+
+    // sorted set of tracks
+    std::set<TrackStats, SimpleTrackStatComparator> track_set_;
+};
 
 } // namespace sfm
 } // namespace openMVG

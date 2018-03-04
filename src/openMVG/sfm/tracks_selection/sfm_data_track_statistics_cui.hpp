@@ -24,6 +24,12 @@ struct TrackStats {
                const double cost_,
                const std::set<IndexT> &visibility_set_);
 
+    TrackStats(const IndexT &id_,
+               const size_t size_,
+               const double cost_,
+               const std::set<IndexT> &visibility_set_);
+
+
     friend std::ostream &operator<<(std::ostream &Stream, const TrackStats &ts);
 
     // Is it an already selected track?
@@ -38,15 +44,31 @@ struct TrackStats {
     size_t size = 0;
 
     // Scale of the feature
+    // it's not needed in Batched Incremental SfM paper even if there is no reason why using scale of features is
+    // profitable in the Track Selection paper and not used in the Batched Incremental SfM one.
     double scale = 0.0;
 
-    // cost
+    // reprojection cost
     double reprojection_cost = 0.0;
 };
 
+struct SimpleTrackStatComparator {
+    // /!\ sign are inverted because we do not want to reverse order afterward
+    bool operator()(const TrackStats &lhs, const TrackStats &rhs) const {
+      if (rhs.size < lhs.size)
+        return true;
+      else if (rhs.size > lhs.size)
+        return false;
+
+      if (lhs.reprojection_cost < rhs.reprojection_cost)
+        return true;
+      else if (lhs.reprojection_cost > rhs.reprojection_cost)
+        return false;
+    }
+};
 
 struct TrackStatPointerComparator {
-    // /!\ sign are inverted because we do not want to reverse order
+    // /!\ sign are inverted because we do not want to reverse order afterward
     bool operator()(const std::shared_ptr<TrackStats> &lhs, const std::shared_ptr<TrackStats> &rhs) const {
       if (rhs->size < lhs->size)
         return true;
@@ -65,6 +87,7 @@ struct TrackStatPointerComparator {
     }
 };
 
+
 // view_id, set of TrackStat
 using TracksInvertedList = std::map<IndexT, std::set<std::shared_ptr<TrackStats>, TrackStatPointerComparator> >;
 
@@ -75,7 +98,7 @@ using ReprojectionInvertedList = std::map<IndexT, std::vector<double> >; //TODO:
 using ViewStats = std::vector<std::pair<double, IndexT> >;
 
 // helpers
-// TODO: should be placed somewhere else?
+// TODO: thes helpers should be placed somewhere else?
 template<typename Container>
 double mean_iterable(const Container &data) {
   const double sum = std::accumulate(std::begin(data), std::end(data), 0.0);
