@@ -121,7 +121,7 @@ private:
 
     void buildTrackStatistic();
 
-    /// parameters
+    /// parameter
     // number of selected tracks per view
     uint32_t coverage_ = 100;
 

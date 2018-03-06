@@ -18,21 +18,21 @@ namespace sfm {
 
 struct TrackStats {
 
-    TrackStats(const IndexT &id_,
-               const size_t size_,
-               const double scale_,
-               const double cost_,
+    TrackStats(IndexT id_,
+               size_t size_,
+               double scale_,
+               double cost_,
                const std::set<IndexT> &visibility_set_);
 
-    TrackStats(const IndexT &id_,
-               const size_t size_,
-               const double cost_,
+    TrackStats(IndexT id_,
+               size_t size_,
+               double cost_,
                const std::set<IndexT> &visibility_set_);
 
 
     friend std::ostream &operator<<(std::ostream &Stream, const TrackStats &ts);
 
-    // Is it an already selected track?
+    // Is this track already been selected?
     bool selected = false;
 
     std::set<IndexT> visibility_set;
@@ -40,7 +40,7 @@ struct TrackStats {
     // Id of the track (id in the Landmarks map)
     IndexT id = 0;
 
-    // Number of obs : it is basically visibility_set.size() but we cache it
+    // Number of obs: it is basically visibility_set.size() but we cache it
     size_t size = 0;
 
     // Scale of the feature
@@ -53,7 +53,6 @@ struct TrackStats {
 };
 
 struct SimpleTrackStatComparator {
-    // /!\ sign are inverted because we do not want to reverse order afterward
     bool operator()(const TrackStats &lhs, const TrackStats &rhs) const {
       if (rhs.size < lhs.size)
         return true;
@@ -68,7 +67,6 @@ struct SimpleTrackStatComparator {
 };
 
 struct TrackStatPointerComparator {
-    // /!\ sign are inverted because we do not want to reverse order afterward
     bool operator()(const std::shared_ptr<TrackStats> &lhs, const std::shared_ptr<TrackStats> &rhs) const {
       if (rhs->size < lhs->size)
         return true;
@@ -97,8 +95,8 @@ using ReprojectionInvertedList = std::map<IndexT, std::vector<double> >; //TODO:
 // view_id & cost
 using ViewStats = std::vector<std::pair<double, IndexT> >;
 
-// helpers
-// TODO: thes helpers should be placed somewhere else?
+/// helpers
+// TODO: these helpers should be placed somewhere else?
 template<typename Container>
 double mean_iterable(const Container &data) {
   const double sum = std::accumulate(std::begin(data), std::end(data), 0.0);

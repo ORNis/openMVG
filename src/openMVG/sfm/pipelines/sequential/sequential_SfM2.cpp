@@ -171,17 +171,22 @@ bool SequentialSfMReconstructionEngine2::Process() {
         std::set<IndexT> prev_selected_tracks_ids, curr_selected_tracks_ids;
         std::vector<IndexT > intersection_ids, union_ids;
 
+        // We retrieve previously selected tracks ids
         std::transform(selected_tracks.cbegin(), selected_tracks.cend(),
                        std::inserter(prev_selected_tracks_ids, prev_selected_tracks_ids.begin()),
                        stl::RetrieveKey());
 
+        // We perform the Track selection
         SfM_Data_Batched_Tracks_Selection ts(sfm_data_);
+        ts.setCoverage(200);
         selected_tracks = ts.select();
 
+        // We select current tracks ids
         std::transform(selected_tracks.cbegin(), selected_tracks.cend(),
                        std::inserter(curr_selected_tracks_ids, curr_selected_tracks_ids.begin()),
                        stl::RetrieveKey());
 
+        // we compute the intersection over union criterion (See paper section 3.5)
         std::set_intersection(curr_selected_tracks_ids.cbegin(), curr_selected_tracks_ids.cend(),
                               prev_selected_tracks_ids.cbegin(), prev_selected_tracks_ids.cend(), std::back_inserter(intersection_ids));
 
@@ -191,9 +196,11 @@ bool SequentialSfMReconstructionEngine2::Process() {
         intersection_over_union = double(intersection_ids.size()) / double(union_ids.size());
         std::cout << "intersection over union score " << intersection_over_union << std::endl;
 
+        // We swap the full 3D structure and the selected tracks before the BA
         std::swap(selected_tracks, sfm_data_.structure);
         // Adjust the scene
         BundleAdjustment(10);
+        // Fill back the full 3D structure into the SfM_Data
         std::swap(selected_tracks, sfm_data_.structure);
       }
 
@@ -286,7 +293,7 @@ bool SequentialSfMReconstructionEngine2::InitTracksAndLandmarks()
 
   // Initialize the shared track visibility helper
   shared_track_visibility_helper_.reset(new openMVG::tracks::SharedTrackVisibilityHelper(map_tracks_));
-  return map_tracks_.size() > 0;
+  return !map_tracks_.empty();
 }
 
 bool SequentialSfMReconstructionEngine2::Triangulation()

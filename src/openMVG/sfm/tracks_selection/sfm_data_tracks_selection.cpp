@@ -32,6 +32,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
   std::cout << "MST computation" << std::endl;
   system::Timer timer;
   double curr_percent_selected = 0.0;
+  //TODO: this could potentially turn into an infinite loop
   for (int curr_iter_mst = 0; curr_iter_mst < num_trees_ || curr_percent_selected <= percent_selected_; ++curr_iter_mst) {
     size_t num_views = view_stats_.size();
     ViewStats curr_layer;
@@ -43,15 +44,15 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
       ViewStats next_layer;
       std::sort(std::begin(curr_layer), std::end(curr_layer));;
       for (auto &curr_viewStat : curr_layer) {
-        const std::set<IndexT> &ngb_views = adjascent_map_[curr_viewStat.second];
-        // We compute the diff between neighbor views and already selected view
-        std::set<IndexT> valid_ngb_views;
-        std::set_difference(std::begin(ngb_views), std::end(ngb_views),
+        const std::set<IndexT> &adj_views = adjascent_map_[curr_viewStat.second];
+        // We compute the diff between adjascent views and already selected views
+        std::set<IndexT> valid_adj_views;
+        std::set_difference(std::begin(adj_views), std::end(adj_views),
                             std::begin(selected_views), std::end(selected_views),
-                            std::inserter(valid_ngb_views, valid_ngb_views.begin()));
+                            std::inserter(valid_adj_views, std::begin(valid_adj_views)));
 
         // if the diff is empty we go to the next view in the layer
-        if (valid_ngb_views.empty())
+        if (valid_adj_views.empty())
           continue;
 
         for (auto &curr_track : tracks_invertedList_[curr_viewStat.second]) {
@@ -62,19 +63,19 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
             std::set<IndexT> valid_observed_views;
 
             std::set_intersection(std::begin(curr_vis_set), std::end(curr_vis_set),
-                                  std::begin(valid_ngb_views), std::end(valid_ngb_views),
-                                  std::inserter(valid_observed_views, valid_observed_views.begin()));
+                                  std::begin(valid_adj_views), std::end(valid_adj_views),
+                                  std::inserter(valid_observed_views, std::begin(valid_observed_views)));
 
-            if (valid_observed_views.empty()) // the track cover none of the valid_ngb_views of the curr_view
+            if (valid_observed_views.empty()) // In this case the track cover none of the valid_ngb_views of the curr_view
               continue;
 
-            // diff valid_views and selected_views;
+            // diff valid_views and selected_views to get new views covered by the track
             std::vector<IndexT> new_views;
             std::set_difference(std::begin(valid_observed_views), std::end(valid_observed_views),
                                 std::begin(selected_views), std::end(selected_views),
                                 std::back_inserter(new_views));
 
-            if (new_views.empty()) // the valid_views
+            if (new_views.empty()) // there is no additional views covered by the track
               continue;
 
             // The track is valid, insert the track and the new views
@@ -82,7 +83,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
             curr_track->selected = true;
             for (const auto &nv : new_views) {
               selected_views.insert(nv);
-              valid_ngb_views.erase(nv);
+              valid_adj_views.erase(nv);
               auto nv_viewstat = std::find_if(std::begin(view_stats_), std::end(view_stats_),
                                               [&nv](std::pair<double, IndexT> &v_stat) -> bool {
                                                   return v_stat.second == nv;
@@ -92,7 +93,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
             }
           }
           // TODO: the break semantic is maybe not the best, but for now it works
-          if (valid_ngb_views.empty())
+          if (valid_adj_views.empty())
             break;
 
           if (selected_views.size() == num_views)
@@ -125,8 +126,8 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
 void SfM_Data_Cui_Tracks_Selection::initAdjascentMap()
 {
   using GraphT = lemon::ListGraph;
-  //TODO filter orphans => views without pose and intrinsics // connected components // Externalize that ?
-  //TODO prefer and edge based iteration and a cache with vertex flagged as invalid
+  // TODO filter orphans => views without pose and intrinsics // connected components // Externalize that?
+  // TODO prefer and edge based iteration and a cache with vertex flagged as invalid
   const GraphT & graph = epipolar_graph_.g;
   const GraphT::NodeMap<IndexT> * node_map = epipolar_graph_.node_map_id.get();
 
@@ -182,7 +183,7 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
       //const features::PointFeature & obs_feature = features_provider_->getFeatures(obs_view_id).at(curr_obs.second.id_feat);
       const double scale = 1.0;
       // features_provider_->getScales(obs_view_id).at(curr_obs.second.id_feat);
-      // TODO: scales handling is implemented in EgoSfM branch but it's not elegant (see slack discussion about that)
+      // TODO: scales handling is implemented in EgoSfM branch but it's not elegant (see the Slack discussion about that)
 
       max_size_image.push_back(std::max(obs_view->ui_height, obs_view->ui_width));
 
@@ -269,8 +270,8 @@ void SfM_Data_Batched_Tracks_Selection::buildTrackStatistic() {
       visibility_set.insert(obs_view_id);
     }
 
-    track_set_.emplace(TrackStats(indexed_landmark->first, track_size, mean_iterable(reprojection_errors),
-               visibility_set));
+    track_set_.emplace(TrackStats(indexed_landmark->first, track_size,
+                                  mean_iterable(reprojection_errors), visibility_set));
   }
   std::cout << "-- End Tracks statistics computation in " << timer.elapsedMs() << " ms" << "\n";
 
@@ -320,8 +321,6 @@ Landmarks SfM_Data_Batched_Tracks_Selection::select() {
 
   return selected_tracks;
 }
-
-
 
 } // namespace sfm
 } // namespace openMVG

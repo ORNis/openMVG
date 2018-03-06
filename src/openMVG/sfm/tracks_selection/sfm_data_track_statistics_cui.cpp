@@ -10,19 +10,19 @@
 namespace openMVG {
 namespace sfm {
 
-TrackStats::TrackStats(const IndexT &id_,
-                       const size_t size_,
-                       const double scale_,
-                       const double reprojection_cost_,
+TrackStats::TrackStats(IndexT id_,
+                       size_t size_,
+                       double scale_,
+                       double reprojection_cost_,
                        const std::set<IndexT> &visibility_set_) :
         id(id_), size(size_), reprojection_cost(reprojection_cost_), visibility_set(visibility_set_) {
   // It's not likely that scale == rhs.scale (because it is an high precision float value) so we truncate it
   scale = std::round(scale_ * 10.0) / 10.0;
 };
 
-TrackStats::TrackStats(const IndexT &id_,
-                       const size_t size_,
-                       const double reprojection_cost_,
+TrackStats::TrackStats(IndexT id_,
+                       size_t size_,
+                       double reprojection_cost_,
                        const std::set<IndexT> &visibility_set_) :
         id(id_), size(size_), reprojection_cost(reprojection_cost_), visibility_set(visibility_set_) {};
 
