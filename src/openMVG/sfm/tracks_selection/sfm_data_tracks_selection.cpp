@@ -17,9 +17,10 @@ namespace sfm {
 
 SfM_Data_Cui_Tracks_Selection::SfM_Data_Cui_Tracks_Selection(const SfM_Data &sfm_data,
                                                              const graph::indexedGraph &epipolar_graph,
-                                                             const std::shared_ptr<Features_Provider> & features_provider):
-  SfM_Data_Tracks_Selection_Basis(sfm_data), epipolar_graph_(epipolar_graph), features_provider_(features_provider){}
-
+                                                             const std::shared_ptr<Features_Provider> &features_provider)
+        :
+        SfM_Data_Tracks_Selection_Basis(sfm_data), epipolar_graph_(epipolar_graph),
+        features_provider_(features_provider) {}
 
 
 Landmarks SfM_Data_Cui_Tracks_Selection::select() {
@@ -33,7 +34,8 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
   system::Timer timer;
   double curr_percent_selected = 0.0;
   //TODO: this could potentially turn into an infinite loop
-  for (int curr_iter_mst = 0; curr_iter_mst < num_trees_ || curr_percent_selected <= percent_selected_; ++curr_iter_mst) {
+  for (int curr_iter_mst = 0;
+       curr_iter_mst < num_trees_ || curr_percent_selected <= percent_selected_; ++curr_iter_mst) {
     size_t num_views = view_stats_.size();
     ViewStats curr_layer;
     std::set<IndexT> selected_views;
@@ -114,8 +116,7 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
 
   Landmarks result;
 
-  for(const auto track_id : selected_tracks)
-  {
+  for (const auto track_id : selected_tracks) {
     result[track_id] = sfm_data_.structure.at(track_id);
   }
 
@@ -123,13 +124,12 @@ Landmarks SfM_Data_Cui_Tracks_Selection::select() {
 }
 
 
-void SfM_Data_Cui_Tracks_Selection::initAdjascentMap()
-{
+void SfM_Data_Cui_Tracks_Selection::initAdjascentMap() {
   using GraphT = lemon::ListGraph;
   // TODO filter orphans => views without pose and intrinsics // connected components // Externalize that?
   // TODO prefer and edge based iteration and a cache with vertex flagged as invalid
-  const GraphT & graph = epipolar_graph_.g;
-  const GraphT::NodeMap<IndexT> * node_map = epipolar_graph_.node_map_id.get();
+  const GraphT &graph = epipolar_graph_.g;
+  const GraphT::NodeMap <IndexT> *node_map = epipolar_graph_.node_map_id.get();
 
   adjascent_map_.clear();
   for (GraphT::NodeIt nIter(graph); nIter != lemon::INVALID; ++nIter) {
@@ -137,8 +137,7 @@ void SfM_Data_Cui_Tracks_Selection::initAdjascentMap()
     std::set<IndexT> curr_node_set;
     for (GraphT::IncEdgeIt itNgb = lemon::ListGraph::IncEdgeIt(graph, nIter);
          itNgb != lemon::INVALID;
-         ++itNgb)
-    {
+         ++itNgb) {
       GraphT::Node ngb_node = graph.oppositeNode(nIter, itNgb);
       curr_node_set.insert((*node_map)[ngb_node]);
     }
@@ -146,8 +145,7 @@ void SfM_Data_Cui_Tracks_Selection::initAdjascentMap()
   }
 }
 
-void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
-{
+void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic() {
   // clean up previous statistics
   reproj_invertedList_.clear();
   tracks_invertedList_.clear();
@@ -170,7 +168,7 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
     feature_scales.reserve(track_size);
     std::vector<double> reprojection_errors;
     reprojection_errors.reserve(track_size);
-    std::vector<uint32_t > max_size_image;
+    std::vector<uint32_t> max_size_image;
     max_size_image.reserve(track_size);
     std::set<IndexT> visibility_set;
 
@@ -205,12 +203,11 @@ void SfM_Data_Cui_Tracks_Selection::buildTrackStatistic()
               new TrackStats(indexed_landmark->first, track_size, mean_iterable(feature_scales), cost,
                              visibility_set));
 
-        for (const auto &visible_view_id : visibility_set) {
-          tracks_invertedList_[visible_view_id].insert(curr_track_stat);
-        }
+      for (const auto &visible_view_id : visibility_set) {
+        tracks_invertedList_[visible_view_id].insert(curr_track_stat);
+      }
 
-    } else
-    {
+    } else {
       ++count_gross_outliers;
     }
   }
@@ -235,20 +232,29 @@ void SfM_Data_Cui_Tracks_Selection::buildViewStatistic() {
 }
 
 
-
-
-SfM_Data_Batched_Tracks_Selection::SfM_Data_Batched_Tracks_Selection (const SfM_Data &sfm_data):SfM_Data_Tracks_Selection_Basis(sfm_data)
-{};
+SfM_Data_Batched_Tracks_Selection::SfM_Data_Batched_Tracks_Selection(
+        const SfM_Data &sfm_data,
+        const std::unique_ptr<openMVG::tracks::SharedTrackVisibilityHelper> &shared_track_visibility_helper) :
+        SfM_Data_Tracks_Selection_Basis(sfm_data), shared_track_visibility_helper_(shared_track_visibility_helper) {};
 
 
 void SfM_Data_Batched_Tracks_Selection::buildTrackStatistic() {
-  track_set_.clear();
+
+  std::map<IndexT, TrackStats> map_track_stat;
 
   std::cout << "\n"
             << "Tracks statistics computation" << std::endl;
   system::Timer timer;
 
+  // 0- We populate the coverage map with already calibrated cameras
+  for (const auto &view_it : sfm_data_.GetViews()) {
+    const View *v = view_it.second.get();
+    if (sfm_data_.IsPoseAndIntrinsicDefined(v))
+      map_view_coverage_[v->id_view] = 0;
+  }
+
   //TODO: openMP
+  // 1- We compute the Track stats for inliers tracks
   for (auto indexed_landmark = sfm_data_.structure.cbegin();
        indexed_landmark != sfm_data_.structure.cend(); ++indexed_landmark) {
 
@@ -270,50 +276,117 @@ void SfM_Data_Batched_Tracks_Selection::buildTrackStatistic() {
       visibility_set.insert(obs_view_id);
     }
 
-    track_set_.emplace(TrackStats(indexed_landmark->first, track_size,
-                                  mean_iterable(reprojection_errors), visibility_set));
+    // The reprojection cost is computed in the fashion of the Track selection ( mean(reproj) + mu * sigma(reproj) )
+    // instead of the simple mean(reproj) exposed in Batched incremental paper, it's clearly better
+    // TODO: this could be a parameter
+    map_track_stat.insert({indexed_landmark->first, TrackStats(indexed_landmark->first, track_size,
+                                                                reprojection_cost_iterable(reprojection_errors, mu_),
+                                                                visibility_set)});
   }
+
+  //2- we compute possible next candidate to resection
+  // and we augment each TrackStats
+
+  // Code from Pierre Moulon
+  // Collect the views that does not have any 3D pose
+  const std::set<IndexT> view_with_no_pose = [&] {
+      std::set<IndexT> idx;
+      for (const auto &view_it : sfm_data_.GetViews()) {
+        const View *v = view_it.second.get();
+        const IndexT id_pose = v->id_pose;
+        if (sfm_data_.GetPoses().count(id_pose) == 0)
+          idx.insert(view_it.first);
+      }
+      return idx;
+  }();
+
+  const IndexT pose_before = sfm_data_.GetPoses().size();
+
+  // Get the track ids of the reconstructed landmarks //TODO can be computed upstream in 1-
+  const std::vector<IndexT> reconstructed_trackId = [&] {
+      std::vector<IndexT> tracks_ids;
+      tracks_ids.reserve(sfm_data_.GetLandmarks().size());
+      std::transform(sfm_data_.GetLandmarks().cbegin(), sfm_data_.GetLandmarks().cend(),
+                     std::back_inserter(tracks_ids),
+                     stl::RetrieveKey());
+      std::sort(tracks_ids.begin(), tracks_ids.end());
+      return tracks_ids;
+  }();
+
+  // List the view that have a sufficient 2D-3D coverage for robust pose estimation
+#pragma omp parallel
+  for (const auto &view_id : view_with_no_pose) {
+#ifdef OPENMVG_USE_OPENMP
+#pragma omp single nowait
+#endif
+    {
+      // List the track related to the current view_id
+      openMVG::tracks::STLMAPTracks view_tracks;
+      shared_track_visibility_helper_->GetTracksInImages({view_id}, view_tracks);
+      std::set<IndexT> view_tracks_ids;
+      tracks::TracksUtilsMap::GetTracksIdVector(view_tracks, &view_tracks_ids);
+
+      // Get the ids of the already reconstructed tracks
+      const std::set<IndexT> track_id_for_resection = [&] {
+          std::set<IndexT> track_id;
+          std::set_intersection(view_tracks_ids.cbegin(), view_tracks_ids.cend(),
+                                reconstructed_trackId.cbegin(), reconstructed_trackId.cend(),
+                                std::inserter(track_id, track_id.begin()));
+          return track_id;
+      }();
+      const double track_ratio = track_id_for_resection.size() / static_cast<float>(view_tracks_ids.size() + 1);
+      if (track_ratio > track_ratio_ && track_id_for_resection.size() > 12) { // 12 = avoid to weakly supported views
+#pragma omp critical
+        {
+          // the view is valid, the id is added to the coverage map.
+          map_view_coverage_[view_id] = 0;
+          for (auto track_id : track_id_for_resection) {
+            //Beware, original paper increase also the size of the track, but tests shows that it's not a good idea
+            map_track_stat.at(track_id).visibility_set.insert(view_id);
+          }
+        }
+      }
+    }
+  }
+
+  //3- Eventually we sort all TrackStats in a set
+  for (auto ts : map_track_stat) {
+    track_set_.insert(ts.second);
+  }
+
   std::cout << "-- End Tracks statistics computation in " << timer.elapsedMs() << " ms" << "\n";
 
 }
 
+
 Landmarks SfM_Data_Batched_Tracks_Selection::select() {
+  Landmarks selected_tracks;
+  track_set_.clear();
+  map_view_coverage_.clear();
+
+  if (sfm_data_.GetLandmarks().empty())
+    return selected_tracks;
 
   buildTrackStatistic();
-
-  Landmarks selected_tracks;
 
   std::cout << "Track selection computation" << std::endl;
   system::Timer timer;
 
-  // map view_id => coverage
-  std::map<IndexT, uint32_t> view_coverage;
-
-  for(const auto & view : sfm_data_.views)
-  {
-    View * curr_view = view.second.get();
-    if(sfm_data_.IsPoseAndIntrinsicDefined(curr_view))
-    {
-      view_coverage[curr_view->id_view] = 0;
-    }
-  }
-
   uint32_t num_view_covered = 0;
-  for(const auto & curr_track : track_set_) //TODO: while
+  const uint64_t num_view_to_cover = map_view_coverage_.size();
+  for (const auto &curr_track : track_set_) //TODO: while
   {
     bool selectable = false;
-    for(const auto & view_id : curr_track.visibility_set)
-    {
-      if(view_coverage[view_id] < coverage_)
-      {
+    for (const auto &view_id : curr_track.visibility_set) {
+      if (map_view_coverage_[view_id] < coverage_) {
         selectable = true;
-        if (++view_coverage[view_id] >= coverage_)
+        if (++map_view_coverage_[view_id] >= coverage_)
           ++num_view_covered;
       }
     }
     if (selectable)
       selected_tracks.insert({curr_track.id, sfm_data_.structure.at(curr_track.id)});
-    if (num_view_covered == view_coverage.size())
+    if (num_view_covered == num_view_to_cover)
       break;
   }
   std::cout << "-- End track selection in " << timer.elapsedMs() << " ms" << "\n";

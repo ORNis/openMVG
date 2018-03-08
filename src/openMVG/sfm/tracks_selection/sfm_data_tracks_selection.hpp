@@ -13,8 +13,10 @@
 
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
-
 #include "openMVG/sfm/sfm_data.hpp"
+#include "openMVG/tracks/tracks.hpp"
+
+#include "openMVG/stl/stl.hpp"
 
 #include "openMVG/sfm/tracks_selection/sfm_data_track_statistics_cui.hpp"
 
@@ -86,7 +88,7 @@ private:
     ViewStats view_stats_;
 
     /// Parameters
-    // sigma multiplier
+    // sigma multiplier to weight reprojection error
     double mu_ = 3.0;
 
     // number of mst run
@@ -99,8 +101,6 @@ private:
     double validity_cost_threshold_ = 0.3;
 };
 
-
-
 ///- Track Selection method exposed in:
 /// Cui H., Shen S., Gao X., Hu. Z.,
 /// Batched Incremental Structure-from-Motion. International Conference on 3D Vision (3DV) 2017.
@@ -108,7 +108,8 @@ class SfM_Data_Batched_Tracks_Selection : SfM_Data_Tracks_Selection_Basis {
 
 
 public:
-    SfM_Data_Batched_Tracks_Selection(const SfM_Data &sfm_data);
+    SfM_Data_Batched_Tracks_Selection(const SfM_Data &sfm_data,
+                                      const std::unique_ptr<openMVG::tracks::SharedTrackVisibilityHelper> & shared_track_visibility_helper);
 
     Landmarks select() override;
 
@@ -117,16 +118,38 @@ public:
         coverage_ = coverage;
     }
 
+    void setTrackRatio(const float track_ratio)
+    {
+        track_ratio_ = track_ratio;
+    }
+
+    void setSigmaMultiplier(const double mu)
+    {
+        mu_ = mu;
+    }
+
 private:
 
     void buildTrackStatistic();
 
-    /// parameter
-    // number of selected tracks per view
+    const std::unique_ptr<openMVG::tracks::SharedTrackVisibilityHelper> & shared_track_visibility_helper_;
+
+    /// Parameters
+    // Number of selected tracks per view
     uint32_t coverage_ = 100;
 
-    // sorted set of tracks
+    // Ratio of visible tracks in next views
+    float track_ratio_ = 0.0;
+
+    // sigma multiplier to weight reprojection error
+    float mu_ = 3.0;
+
+    /// Data structures
+    // Sorted set of tracks
     std::set<TrackStats, SimpleTrackStatComparator> track_set_;
+
+    // map view_id => coverage
+    std::map<IndexT, uint32_t> map_view_coverage_;
 };
 
 } // namespace sfm

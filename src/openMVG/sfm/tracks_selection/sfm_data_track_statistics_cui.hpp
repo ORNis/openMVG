@@ -63,6 +63,18 @@ struct SimpleTrackStatComparator {
         return true;
       else if (lhs.reprojection_cost > rhs.reprojection_cost)
         return false;
+
+      return lhs.id < rhs.id;
+    }
+};
+
+struct ReprojTrackStatComparator {
+    bool operator()(const TrackStats &lhs, const TrackStats &rhs) const {
+
+      if (lhs.reprojection_cost >= rhs.reprojection_cost)
+        return true;
+      else
+        return false;
     }
 };
 
@@ -82,6 +94,8 @@ struct TrackStatPointerComparator {
         return true;
       else if (lhs->reprojection_cost > rhs->reprojection_cost)
         return false;
+
+      return lhs->id < rhs->id;
     }
 };
 

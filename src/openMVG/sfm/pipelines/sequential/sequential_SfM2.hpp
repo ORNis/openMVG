@@ -51,6 +51,9 @@ public:
   /// Triangulate tracks
   bool Triangulation();
 
+  /// Select tracks (selection + truncated BA)
+  bool selectTracks(const float & track_inlier_ratio);
+
   /// Adding missing view (Try to find the pose of the missing camera)
   bool AddingMissingView(const float & track_inlier_ratio);
 
