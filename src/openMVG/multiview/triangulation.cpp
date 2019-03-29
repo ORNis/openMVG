@@ -65,8 +65,8 @@ void TriangulateL1Angular
   const Mat3 R = R1 * R0.transpose();
   const Vec3 t = t1 - R * t0;
 
-  Vec3 m0 = R * x0;
-  Vec3 m1 = x1;
+  const Vec3 m0 = R * x0;
+  const Vec3 & m1 = x1;
 
   // Table 1 -2) obtain m'0 and m'1
   // allocate the two vectors
@@ -94,11 +94,46 @@ void TriangulateL1Angular
   // Rf'0 = m'0 and f'1 = m'1
   // Eq. (11)
   const Vec3 z = mprime1.cross(mprime0);
-  // x'1 is into the frame of camera1 convert it into the world frame in order to obtain the 3D point
   const Vec3 xprime1 = t + (z.dot(t.cross(mprime1)) / z.squaredNorm()) * mprime0;
-  // We convert the x'1 into the world frame
+  // x'1 is into the frame of camera1 convert it into the world frame in order to obtain the 3D point
   *X_euclidean = R1.transpose() * (xprime1 - t1);
 }
 
+void TriangulateLInfinityAngular
+(
+  const Mat3 &R0,
+  const Vec3 &t0,
+  const Vec3 &x0,
+  const Mat3 &R1,
+  const Vec3 &t1,
+  const Vec3 &x1,
+  Vec3 *X_euclidean
+)
+{
+  // Table 1 - 1) we compute m0 and m1
+  // absolute to relative
+  const Mat3 R = R1 * R0.transpose();
+  const Vec3 t = t1 - R * t0;
+
+  const Vec3 m0 = R * x0;
+  const Vec3 & m1 = x1;
+
+  //cf. 7. Lemma 2
+  const Vec3 na = (m0.normalized() + m1.normalized()).cross(t);
+  const Vec3 nb = (m0.normalized() - m1.normalized()).cross(t);
+
+  const Vec3 & nprime = na.norm() >= nb.norm() ? na.normalized() : nb.normalized();
+
+  const Vec3 mprime0 = m0 - (m0.dot(nprime)) * nprime;
+  const Vec3 mprime1 = m1 - (m1.dot(nprime)) * nprime;
+
+  // Table 1 - 3)
+  // Rf'0 = m'0 and f'1 = m'1
+  // Eq. (11)
+  const Vec3 z = mprime1.cross(mprime0);
+  const Vec3 xprime1 = t + (z.dot(t.cross(mprime1)) / z.squaredNorm()) * mprime0;
+  // x'1 is into the frame of camera1 convert it into the world frame in order to obtain the 3D point
+  *X_euclidean = R1.transpose() * (xprime1 - t1);
+}
 
 }  // namespace openMVG

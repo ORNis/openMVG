@@ -74,6 +74,31 @@ void TriangulateL1Angular
   Vec3 *X_euclidean
 );
 
+
+/**
+* @brief Optimal LInfinity Angular triangulation
+* @brief Minimize the LInfinity norm of angular errors
+* @param R0 First Camera rotation matrix
+* @param t0 First Camera translation vector
+* @param x0 bearing vector of the landmark observation in the first camera
+* @param R1 Second Camera rotation matrix
+* @param t1 Second Camera translation vector
+* @param x1 bearing vector of the landmark observation in the second camera
+* @param[out] X_euclidean Euclidean triangulated point
+* @ref S.H. Lee, J. Civera - Closed-Form Optimal Triangulation Based on Angular Errors - https://arxiv.org/pdf/1903.09115.pdf
+*/
+void TriangulateLInfinityAngular
+(
+  const Mat3 &R0,
+  const Vec3 &t0,
+  const Vec3 &x0,
+  const Mat3 &R1,
+  const Vec3 &t1,
+  const Vec3 &x1,
+  Vec3 *X_euclidean
+);
+
+
 } // namespace openMVG
 
 #endif  // OPENMVG_MULTIVIEW_TRIANGULATION_HPP
