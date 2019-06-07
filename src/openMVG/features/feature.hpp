@@ -31,8 +31,6 @@ class PointFeature {
   friend std::istream& operator>>(std::istream& in, PointFeature& obj);
 
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
   PointFeature(float x=0.0f, float y=0.0f);
 
   float x() const;
@@ -182,7 +180,7 @@ static bool saveFeatsToFile(
 }
 
 /// Export point feature based vector to a matrix [(x,y)'T, (x,y)'T]
-template< typename FeaturesT>
+template<typename FeaturesT>
 void PointsToMat(
   const FeaturesT & vec_feats,
   Mat& m)

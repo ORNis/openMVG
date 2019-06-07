@@ -107,8 +107,8 @@ static void makelogcombi
 {
   // compute a lookuptable of log10 value for the range [0,n+1]
   std::vector<float> vec_log10(n + 1);
-  for (uint32_t k = 0; k <= n; ++k)
-    vec_log10[k] = log10(static_cast<float>(k));
+  for (uint32_t i = 0; i <= n; ++i)
+    vec_log10[i] = log10(static_cast<float>(i));
 
   makelogcombi_n(n, vec_logc_n, vec_log10);
   makelogcombi_k(k, n, vec_logc_k, vec_log10);
@@ -210,7 +210,7 @@ NFA_Interface<Kernel>::ComputeNFA_and_inliers
     //   - to compute the NFA for every sample of the datum.
     const int nBins = 20;
     Histogram<double> histo(0.0f, m_max_threshold, nBins);
-    histo.Add(m_residuals.begin(), m_residuals.end());
+    histo.Add(m_residuals.cbegin(), m_residuals.cend());
 
     // Compute NFA scoring from the cumulative histogram
 

@@ -100,7 +100,7 @@ bool L2RotationAveraging
   //--
   // Setup the Action Matrix
   //--
-  std::vector<Eigen::Triplet<double> > tripletList;
+  std::vector<Eigen::Triplet<double>> tripletList;
   tripletList.reserve(nRotationEstimation*12); // 3*3 + 3
   //-- Encode constraint (6.62 Martinec Thesis page 100):
   sMat::Index cpt = 0;
@@ -150,7 +150,7 @@ bool L2RotationAveraging
   // else
   {
     // Sort abs(eigenvalues)
-    std::vector<std::pair<double, Vec> > eigs(AtA.cols());
+    std::vector<std::pair<double, Vec>> eigs(AtA.cols());
     for (Mat::Index i = 0; i < AtA.cols(); ++i)
     {
       eigs[i] = {es.eigenvalues()[i], es.eigenvectors().col(i)};
@@ -298,7 +298,9 @@ bool L2RotationAveraging_Refine
   }
 #ifdef OPENMVG_USE_OPENMP
   solverOptions.num_threads = omp_get_max_threads();
+#if CERES_VERSION_MAJOR < 2
   solverOptions.num_linear_solver_threads = omp_get_max_threads();
+#endif
 #endif // OPENMVG_USE_OPENMP
 
   ceres::Solver::Summary summary;

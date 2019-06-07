@@ -36,8 +36,8 @@ struct Synthetic_Features_Provider : public Features_Provider
       for (Mat2X::Index i = 0; i < synthetic_data._x[j].cols(); ++i)
       {
         const Vec2 pt = synthetic_data._x[j].col(i);
-        feats_per_view[j].push_back(
-          features::PointFeature(pt(0)+noise(generator), pt(1)+noise(generator)));
+        feats_per_view[j].emplace_back(pt(0) + noise(generator),
+                                       pt(1) + noise(generator));
       }
     }
     return true;
@@ -84,7 +84,7 @@ static double RMSE(const SfM_Data & sfm_data)
       const View * view = sfm_data.GetViews().find(itObs->first)->second.get();
       const geometry::Pose3 pose = sfm_data.GetPoseOrDie(view);
       const std::shared_ptr<cameras::IntrinsicBase> intrinsic = sfm_data.GetIntrinsics().at(view->id_intrinsic);
-      const Vec2 residual = intrinsic->residual(pose, iterTracks->second.X, itObs->second.x);
+      const Vec2 residual = intrinsic->residual(pose(iterTracks->second.X), itObs->second.x);
       //std::cout << residual << " ";
       vec.push_back( residual(0) );
       vec.push_back( residual(1) );

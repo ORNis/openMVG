@@ -9,7 +9,7 @@
 #ifndef OPENMVG_IMAGE_IMAGE_CONTAINER_HPP
 #define OPENMVG_IMAGE_IMAGE_CONTAINER_HPP
 
-#include "Eigen/Dense"
+#include <Eigen/Dense>
 
 namespace openMVG
 {
@@ -101,7 +101,7 @@ class Image : public Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::Row
     * @param fInit Indicate if new image should be initialized
     * @param val if fInit is true all pixel in the new image are set to this value
     */
-    inline void resize( int width, int height, bool fInit = true, const T val = T( 0 ) )
+    inline void resize( int width, int height, bool fInit = true, const T val = T() )
     {
       Base::resize( height, width );
       if ( fInit )
@@ -213,7 +213,7 @@ class Image : public Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::Row
     * @return pixelwise imgA + imgB
     * @note Images must have the same size
     */
-    template< typename T1>
+    template<typename T1>
     friend Image<T1> operator+( const Image<T1> & imgA , const Image<T1> & imgB );
 
     /**
@@ -223,7 +223,7 @@ class Image : public Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::Row
     * @return pixelwise imgA - imgB
     * @note Images must have the same size
     */
-    template< typename T1>
+  template<typename T1>
     friend Image<T1> operator-( const Image<T1> & imgA , const Image<T1> & imgB );
 };
 
@@ -234,7 +234,7 @@ class Image : public Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::Row
 * @return pixelwise imgA + imgB
 * @note Images must have the same size
 */
-template< typename T1 >
+template<typename T1>
 Image<T1> operator+( const Image<T1> & imgA , const Image<T1> & imgB )
 {
   return Image<T1>( imgA.Image<T1>::operator+( imgB ) );
@@ -247,7 +247,7 @@ Image<T1> operator+( const Image<T1> & imgA , const Image<T1> & imgB )
 * @return pixelwise imgA - imgB
 * @note Images must have the same size
 */
-template< typename T1>
+template<typename T1>
 Image<T1> operator-( const Image<T1> & imgA , const Image<T1> & imgB )
 {
   return Image<T1>( imgA.Image<T1>::operator-( imgB ) );

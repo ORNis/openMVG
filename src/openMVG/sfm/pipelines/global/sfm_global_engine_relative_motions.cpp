@@ -12,12 +12,10 @@
 #include "openMVG/graph/graph.hpp"
 #include "openMVG/features/feature.hpp"
 #include "openMVG/matching/indMatch.hpp"
-#include "openMVG/multiview/essential.hpp"
-#include "openMVG/multiview/triangulation.hpp"
 #include "openMVG/sfm/pipelines/global/GlobalSfM_rotation_averaging.hpp"
+#include "openMVG/sfm/pipelines/relative_pose_engine.hpp"
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
-#include "openMVG/sfm/pipelines/sfm_robust_model_estimation.hpp"
 #include "openMVG/sfm/sfm_data_BA.hpp"
 #include "openMVG/sfm/sfm_data_BA_ceres.hpp"
 #include "openMVG/sfm/sfm_data_io.hpp"
@@ -31,6 +29,7 @@
 
 #include "third_party/histogram/histogram.hpp"
 #include "third_party/htmlDoc/htmlDoc.hpp"
+#include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 
 #include <ceres/types.h>
 
@@ -234,21 +233,21 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Global_Rotations
 
     if (!vec_rotation_fitting_error.empty())
     {
-      const float error_max = *max_element(vec_rotation_fitting_error.begin(), vec_rotation_fitting_error.end());
+      const float error_max = *max_element(vec_rotation_fitting_error.cbegin(), vec_rotation_fitting_error.cend());
       Histogram<float> histo(0.0f,error_max, 20);
-      histo.Add(vec_rotation_fitting_error.begin(), vec_rotation_fitting_error.end());
+      histo.Add(vec_rotation_fitting_error.cbegin(), vec_rotation_fitting_error.cend());
       std::cout
-        << "\nRelative/Global degree rotations residual errors {0," << error_max<< "}:"
+        << "\nRelative/Global degree rotations residual errors {0," << error_max<< "}:\n"
         << histo.ToString() << std::endl;
       {
         Histogram<float> histo(0.0f, 5.0f, 20);
-        histo.Add(vec_rotation_fitting_error.begin(), vec_rotation_fitting_error.end());
+        histo.Add(vec_rotation_fitting_error.cbegin(), vec_rotation_fitting_error.cend());
         std::cout
-          << "\nRelative/Global degree rotations residual errors {0,5}:"
+          << "\nRelative/Global degree rotations residual errors {0,5}:\n"
           << histo.ToString() << std::endl;
       }
       std::cout << "\nStatistics about global rotation evaluation:" << std::endl;
-      minMaxMeanMedian<float>(vec_rotation_fitting_error.begin(), vec_rotation_fitting_error.end());
+      minMaxMeanMedian<float>(vec_rotation_fitting_error.cbegin(), vec_rotation_fitting_error.cend());
     }
 
     // Log input graph to the HTML report
@@ -323,7 +322,7 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Initial_Structure
     TracksBuilder tracksBuilder;
 #if defined USE_ALL_VALID_MATCHES // not used by default
     matching::PairWiseMatches pose_supported_matches;
-    for (const std::pair< Pair, IndMatches > & match_info :  matches_provider_->pairWise_matches_)
+    for (const std::pair<Pair, IndMatches> & match_info :  matches_provider_->pairWise_matches_)
     {
       const View * vI = sfm_data_.GetViews().at(match_info.first.first).get();
       const View * vJ = sfm_data_.GetViews().at(match_info.first.second).get();
@@ -533,165 +532,27 @@ void GlobalSfMReconstructionEngine_RelativeMotions::Compute_Relative_Rotations
   rotation_averaging::RelativeRotations & vec_relatives_R
 )
 {
-  //
-  // Build the Relative pose graph from matches:
-  //
-  /// pairwise view relation between poseIds
-  using PoseWiseMatches = std::map< Pair, Pair_Set >;
-
-  // List shared correspondences (pairs) between poses
-  PoseWiseMatches poseWiseMatches;
-  for (const auto & iterMatches : matches_provider_->pairWise_matches_)
+  // Compute a relative pose for each edge of the pose pair graph
+  const Relative_Pose_Engine::Relative_Pair_Poses relative_poses = [&]
   {
-    const Pair pair = iterMatches.first;
-    const View * v1 = sfm_data_.GetViews().at(pair.first).get();
-    const View * v2 = sfm_data_.GetViews().at(pair.second).get();
-    poseWiseMatches[Pair(v1->id_pose, v2->id_pose)].insert(pair);
+    Relative_Pose_Engine relative_pose_engine;
+    if (!relative_pose_engine.Process(sfm_data_,
+        matches_provider_,
+        features_provider_))
+      return Relative_Pose_Engine::Relative_Pair_Poses();
+    else
+      return relative_pose_engine.Get_Relative_Poses();
+  }();
+
+  // Export the rotation component from the computed relative poses
+  for (const auto & relative_pose : relative_poses)
+  {
+    // Add the relative rotation to the relative 'rotation' pose graph
+    vec_relatives_R.emplace_back(
+      relative_pose.first.first, relative_pose.first.second,
+      relative_pose.second.rotation(),
+      1.f);
   }
-
-  C_Progress_display my_progress_bar( poseWiseMatches.size(),
-      std::cout, "\n- Relative pose computation -\n" );
-
-#ifdef OPENMVG_USE_OPENMP
-  #pragma omp parallel for schedule(dynamic)
-#endif
-  // Compute the relative pose from pairwise point matches:
-  for (int i = 0; i < static_cast<int>(poseWiseMatches.size()); ++i)
-  {
-    ++my_progress_bar;
-    {
-      PoseWiseMatches::const_iterator iter (poseWiseMatches.begin());
-      std::advance(iter, i);
-      const auto & relative_pose_iterator(*iter);
-      const Pair relative_pose_pair = relative_pose_iterator.first;
-      const Pair_Set & match_pairs = relative_pose_iterator.second;
-
-      // If a pair has the same ID, discard it
-      if (relative_pose_pair.first == relative_pose_pair.second)
-      {
-        continue;
-      }
-
-      // Select common bearing vectors
-      if (match_pairs.size() > 1)
-      {
-        std::cerr << "Compute relative pose between more than two view is not supported" << std::endl;
-        continue;
-      }
-
-      const Pair pairIterator = *(match_pairs.begin());
-
-      const IndexT I = pairIterator.first;
-      const IndexT J = pairIterator.second;
-
-      const View * view_I = sfm_data_.views[I].get();
-      const View * view_J = sfm_data_.views[J].get();
-
-      // Check that valid cameras are existing for the pair of view
-      if (sfm_data_.GetIntrinsics().count(view_I->id_intrinsic) == 0 ||
-        sfm_data_.GetIntrinsics().count(view_J->id_intrinsic) == 0)
-        continue;
-
-
-      const IntrinsicBase * cam_I = sfm_data_.GetIntrinsics().at(view_I->id_intrinsic).get();
-      const IntrinsicBase * cam_J = sfm_data_.GetIntrinsics().at(view_J->id_intrinsic).get();
-
-      // Setup corresponding bearing vector
-      const matching::IndMatches & matches = matches_provider_->pairWise_matches_.at(pairIterator);
-      size_t nbBearing = matches.size();
-      Mat x1(2, nbBearing), x2(2, nbBearing);
-      nbBearing = 0;
-      for (const auto & match : matches)
-      {
-        x1.col(nbBearing) = ((*cam_I)(cam_I->get_ud_pixel(features_provider_->feats_per_view[I][match.i_].coords().cast<double>()))).hnormalized();
-        x2.col(nbBearing++) = ((*cam_J)(cam_J->get_ud_pixel(features_provider_->feats_per_view[J][match.j_].coords().cast<double>()))).hnormalized();
-      }
-
-      RelativePose_Info relativePose_info;
-      // Compute max authorized error as geometric mean of camera plane tolerated residual error
-      relativePose_info.initial_residual_tolerance = std::pow(
-        cam_I->imagePlane_toCameraPlaneError(2.5) *
-        cam_J->imagePlane_toCameraPlaneError(2.5),
-        1./2.);
-
-      // Since we use normalized features, we will use unit image size and intrinsic matrix:
-      const std::pair<size_t, size_t> imageSize(1., 1.);
-      const Mat3 K  = Mat3::Identity();
-
-      if (!robustRelativePose(K, K, x1, x2, relativePose_info, imageSize, imageSize, 256))
-      {
-        continue;
-      }
-      const bool bRefine_using_BA = true;
-      if (bRefine_using_BA)
-      {
-        // Refine the defined scene
-        SfM_Data tiny_scene;
-        tiny_scene.views.insert(*sfm_data_.GetViews().find(view_I->id_view));
-        tiny_scene.views.insert(*sfm_data_.GetViews().find(view_J->id_view));
-        tiny_scene.intrinsics.insert(*sfm_data_.GetIntrinsics().find(view_I->id_intrinsic));
-        tiny_scene.intrinsics.insert(*sfm_data_.GetIntrinsics().find(view_J->id_intrinsic));
-
-        // Init poses
-        const Pose3 & Pose_I = tiny_scene.poses[view_I->id_pose] = Pose3(Mat3::Identity(), Vec3::Zero());
-        const Pose3 & Pose_J = tiny_scene.poses[view_J->id_pose] = relativePose_info.relativePose;
-
-        // Init structure
-        const Mat34 P1 = cam_I->get_projective_equivalent(Pose_I);
-        const Mat34 P2 = cam_J->get_projective_equivalent(Pose_J);
-        Landmarks & landmarks = tiny_scene.structure;
-        for (Mat::Index k = 0; k < x1.cols(); ++k)
-        {
-          const Vec2 x1_ = features_provider_->feats_per_view[I][matches[k].i_].coords().cast<double>();
-          const Vec2 x2_ = features_provider_->feats_per_view[J][matches[k].j_].coords().cast<double>();
-          Vec3 X;
-          TriangulateDLT(P1, x1_.homogeneous(), P2, x2_.homogeneous(), &X);
-          Observations obs;
-          obs[view_I->id_view] = Observation(x1_, matches[k].i_);
-          obs[view_J->id_view] = Observation(x2_, matches[k].j_);
-          landmarks[k].obs = obs;
-          landmarks[k].X = X;
-        }
-        // - refine only Structure and Rotations & translations (keep intrinsic constant)
-        Bundle_Adjustment_Ceres::BA_Ceres_options options(false, false);
-        options.linear_solver_type_ = ceres::DENSE_SCHUR;
-        Bundle_Adjustment_Ceres bundle_adjustment_obj(options);
-        const Optimize_Options ba_refine_options
-          (Intrinsic_Parameter_Type::NONE, // -> Keep intrinsic constant
-          Extrinsic_Parameter_Type::ADJUST_ALL, // adjust camera motion
-          Structure_Parameter_Type::ADJUST_ALL);// adjust scene structure
-        if (bundle_adjustment_obj.Adjust(tiny_scene, ba_refine_options))
-        {
-          // --> to debug: save relative pair geometry on disk
-          // std::ostringstream os;
-          // os << relative_pose_pair.first << "_" << relative_pose_pair.second << ".ply";
-          // Save(tiny_scene, os.str(), ESfM_Data(STRUCTURE | EXTRINSICS));
-          //
-          const Mat3 R1 = tiny_scene.poses[view_I->id_pose].rotation();
-          const Mat3 R2 = tiny_scene.poses[view_J->id_pose].rotation();
-          const Vec3 t1 = tiny_scene.poses[view_I->id_pose].translation();
-          const Vec3 t2 = tiny_scene.poses[view_J->id_pose].translation();
-          // Compute relative motion and save it
-          Mat3 Rrel;
-          Vec3 trel;
-          RelativeCameraMotion(R1, t1, R2, t2, &Rrel, &trel);
-          // Update found relative pose
-          relativePose_info.relativePose = Pose3(Rrel, -Rrel.transpose() * trel);
-        }
-      }
-#ifdef OPENMVG_USE_OPENMP
-      #pragma omp critical
-#endif
-      {
-        // Add the relative rotation to the relative 'rotation' pose graph
-        using namespace openMVG::rotation_averaging;
-          vec_relatives_R.emplace_back(
-            relative_pose_pair.first, relative_pose_pair.second,
-            relativePose_info.relativePose.rotation(),
-            1.f);
-      }
-    }
-  } // for all relative pose
 
   // Log input graph to the HTML report
   if (!sLogging_file_.empty() && !sOut_directory_.empty())
@@ -699,7 +560,7 @@ void GlobalSfMReconstructionEngine_RelativeMotions::Compute_Relative_Rotations
     // Log a relative view graph
     {
       std::set<IndexT> set_ViewIds;
-      std::transform(sfm_data_.GetViews().begin(), sfm_data_.GetViews().end(),
+      std::transform(sfm_data_.GetViews().cbegin(), sfm_data_.GetViews().cend(),
         std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
       graph::indexedGraph putativeGraph(set_ViewIds, getPairs(matches_provider_->pairWise_matches_));
       graph::exportToGraphvizData(

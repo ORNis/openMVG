@@ -71,18 +71,10 @@ MACRO(register_definitions DEF)
   list(APPEND OpenMVG_DEFINITIONS ${STRIPPED_DEF})
 ENDMACRO()
 
-if (WIN32)
-  register_definitions(-DNOMINMAX)
-  register_definitions(-DVC_EXTRALEAN)
-  register_definitions(-D_USE_MATH_DEFINES)
-  if (MSVC)
-    register_definitions(/bigobj)
-  endif (MSVC)
-endif (WIN32)
-
 # Set shared or static mode
 if (OpenMVG_BUILD_SHARED)
   set(BUILD_SHARED_LIBS ON)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 else (OpenMVG_BUILD_SHARED)
   set(BUILD_SHARED_LIBS OFF)
 endif()
@@ -108,12 +100,8 @@ endif()
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmakeFindModules)
 include(OptimizeForArchitecture)
-AutodetectHostArchitecture()
 OptimizeForArchitecture()
 
-if (USE_AVX2)
-  register_definitions(-DOPENMVG_USE_AVX2)
-endif ()
 if (UNIX AND NOT OpenMVG_BUILD_COVERAGE)
   set(CMAKE_C_FLAGS_RELEASE "-O3")
   set(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -143,10 +131,10 @@ if (OpenMVG_USE_OPENMP)
     option(OpenMVG_USE_OPENMP "Use OpenMP for parallelization" ON)
     register_definitions(-DOPENMVG_USE_OPENMP)
     if (NOT MSVC)
-      IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+      if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         # for those using the clang with OpenMP support
         list(APPEND OPENMVG_LIBRARY_DEPENDENCIES omp)
-      ELSE()
+      else()
         list(APPEND OPENMVG_LIBRARY_DEPENDENCIES gomp)
       endif()
     endif (NOT MSVC)
@@ -194,7 +182,7 @@ if (OpenMVG_BUILD_OPENGL_EXAMPLES)
   set_property(TARGET glfw PROPERTY FOLDER OpenMVG/3rdParty/glfw)
 endif (OpenMVG_BUILD_OPENGL_EXAMPLES)
 
-#INSTALL RULES
+# Dependencies install rules
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/
   DESTINATION include/openMVG_dependencies
@@ -223,7 +211,7 @@ MACRO(UNIT_TEST NAMESPACE NAME EXTRA_LIBS)
                                ${CMAKE_SOURCE_DIR}/third_party)
     target_link_libraries(${NAMESPACE}_test_${NAME}
                           ${EXTRA_LIBS} # Extra libs MUST be first.
-                          CppUnitLite ${OPENMVG_LIBRARY_DEPENDENCIES})
+                          CppUnitLite)
     add_test(NAME ${NAMESPACE}_test_${NAME} WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
              COMMAND $<TARGET_FILE:${NAMESPACE}_test_${NAME}>)
   target_compile_definitions(${NAMESPACE}_test_${NAME}
@@ -232,25 +220,45 @@ MACRO(UNIT_TEST NAMESPACE NAME EXTRA_LIBS)
 ENDMACRO(UNIT_TEST)
 
 # ==============================================================================
+# cereal
+# ==============================================================================
+# - external by default
+# - internal if cereal not found
+# ==============================================================================
+find_package(cereal QUIET CONFIG)
+if (NOT TARGET cereal)
+  add_library(cereal INTERFACE)
+  target_include_directories(cereal
+    INTERFACE
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dependencies/cereal/include>
+      $<INSTALL_INTERFACE:include/openMVG_dependencies/cereal/include>
+  )
+  install(TARGETS cereal EXPORT openMVG-targets)
+
+  set(OpenMVG_USE_INTERNAL_CEREAL ON)
+endif()
+
+# ==============================================================================
 # Eigen
 # ==============================================================================
-# - internal by default,
+# - external by default
 # - external if EIGEN_INCLUDE_DIR_HINTS is defined
+# - internal if Eigen not found
 # ==============================================================================
-if (NOT DEFINED EIGEN_INCLUDE_DIR_HINTS)
+find_package(Eigen3 QUIET)
+if (NOT Eigen3_FOUND)
   set(EIGEN_INCLUDE_DIR_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen)
   set(OpenMVG_USE_INTERNAL_EIGEN ON)
+  find_package(Eigen QUIET)
+else()
+  set(EIGEN_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 endif()
-find_package(Eigen QUIET)
-if (EIGEN_FOUND)
-  include_directories(${EIGEN_INCLUDE_DIRS})
-endif (EIGEN_FOUND)
 
 # ==============================================================================
 # Ceres
 # ==============================================================================
-# - internal by default (ceres-solver+cxsparse+miniglog),
-# - external if CERES_DIR_HINTS and find_package return a valid Ceres setup
+# - external by default if CERES_DIR_HINTS or find_package found a valid Ceres
+# - internal if ceres not found (ceres-solver+cxsparse+miniglog)
 # ==============================================================================
 find_package(Ceres QUIET HINTS ${CERES_DIR_HINTS})
 if (NOT Ceres_FOUND)
@@ -261,7 +269,7 @@ if (NOT Ceres_FOUND)
     ${PROJECT_BINARY_DIR}/third_party/ceres-solver/config)
     FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ceres-solver/VERSION" CERES_CONFIG)
     STRING(REGEX REPLACE "version ([0-9.]+).*" "\\1" CERES_VERSION ${CERES_CONFIG})
-  set(CERES_LIBRARIES ceres cxsparse)
+  set(CERES_LIBRARIES openMVG_ceres)
 endif()
 
 # ==============================================================================
@@ -288,11 +296,11 @@ endif()
 if (NOT DEFINED COINUTILS_INCLUDE_DIR_HINTS)
   set(COINUTILS_INCLUDE_DIR_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/CoinUtils/src/)
   set(OpenMVG_USE_INTERNAL_COINUTILS ON)
-endif()
-find_package(CoinUtils QUIET)
-if (NOT COINUTILS_FOUND OR OpenMVG_USE_INTERNAL_COINUTILS)
+  find_package(CoinUtils QUIET)
   set(COINUTILS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/CoinUtils/src/)
   set(COINUTILS_LIBRARY lib_CoinUtils)
+else()
+  find_package(CoinUtils QUIET)
 endif()
 
 ## ==============================================================================
@@ -304,13 +312,13 @@ endif()
 if (NOT DEFINED CLP_INCLUDE_DIR_HINTS)
   set(CLP_INCLUDE_DIR_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/Clp/src/)
   set(OpenMVG_USE_INTERNAL_CLP ON)
-endif()
-find_package(Clp QUIET)
-if (NOT CLP_FOUND OR OpenMVG_USE_INTERNAL_CLP)
+  find_package(Clp QUIET)
   set(CLP_INCLUDE_DIRS
      ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/Clp/src/
      ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/Clp/src/OsiClp/)
   set(CLP_LIBRARIES lib_clp lib_OsiClpSolver)
+else()
+  find_package(Clp QUIET)
 endif()
 
 # ==============================================================================
@@ -322,11 +330,11 @@ endif()
 if (NOT DEFINED OSI_INCLUDE_DIR_HINTS)
   set(OSI_INCLUDE_DIR_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/Osi/src/)
   set(OpenMVG_USE_INTERNAL_OSI ON)
-endif()
-find_package(Osi QUIET)
-if (NOT OSI_FOUND OR OpenMVG_USE_INTERNAL_OSI)
+  find_package(Osi QUIET)
   set(OSI_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osi_clp/Osi/src/Osi/)
   set(OSI_LIBRARY lib_Osi)
+else()
+  find_package(Osi QUIET)
 endif()
 
 # ==============================================================================
@@ -355,7 +363,7 @@ if (NOT LEMON_FOUND OR OpenMVG_USE_INTERNAL_LEMON)
   set(LEMON_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lemon
     ${PROJECT_BINARY_DIR}/third_party/lemon)
-  set(LEMON_LIBRARY lemon)
+  set(LEMON_LIBRARY openMVG_lemon)
 endif()
 
 # ==============================================================================
@@ -364,69 +372,26 @@ endif()
 # - only external and enabled only if OpenMVG_USE_OPENCV is set to ON
 # ==============================================================================
 if (OpenMVG_USE_OPENCV)
-  find_package( OpenCV 3.0 QUIET )
-  if (NOT OpenCV_FOUND)
-    message(STATUS "OpenCV was not found. Disabling OpenCV support.")
+  find_package( OpenCV QUIET )
+  if (NOT OpenCV_FOUND OR OpenCV_VERSION VERSION_LESS "3.0.0")
+    message(STATUS "OpenCV was not found (note that OpenCV version >= 3.0.0 is required). -> Disabling OpenCV support.")
     UPDATE_CACHE_VARIABLE(OpenMVG_USE_OPENCV OFF)
     UPDATE_CACHE_VARIABLE(OpenMVG_USE_OCVSIFT OFF)
-  endif (NOT OpenCV_FOUND)
-endif (OpenMVG_USE_OPENCV)
+  endif()
+endif()
 
 
 # ==============================================================================
 # Third-party libraries:
 # ==============================================================================
 add_subdirectory(third_party)
-
-# ==============================================================================
-# Include directories
-# ==============================================================================
-set(OpenMVG_INCLUDE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies
-  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/cereal/include
-  ${EIGEN_INCLUDE_DIRS}
-  ${FLANN_INCLUDE_DIRS}
-  CACHE PATH "include directories for openMVG and its dependencies"
-)
-
-include_directories(${OpenMVG_INCLUDE_DIRS})
+add_subdirectory(testing)
 
 # ==============================================================================
 # openMVG modules
 # ==============================================================================
 # The openMVG library itself
 add_subdirectory(openMVG)
-
-# ==============================================================================
-# openMVG libraries
-# ==============================================================================
-set(OpenMVG_LIBRARIES
-  openMVG_image
-  openMVG_features
-  openMVG_geometry
-  openMVG_matching
-  openMVG_matching_image_collection
-  openMVG_kvld
-  openMVG_multiview
-  openMVG_lInftyComputerVision
-  openMVG_system
-  openMVG_sfm
-  lemon)
-
-foreach(omvglib ${OpenMVG_LIBRARIES})
-  set_property(TARGET ${omvglib} PROPERTY FOLDER OpenMVG/OpenMVG)
-  set_property(TARGET ${omvglib} APPEND PROPERTY
-    INTERFACE_COMPILE_DEFINITIONS ${OpenMVG_DEFINITIONS})
-  string(REPLACE " " ";" REPLACED_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-  target_compile_options(${omvglib} INTERFACE ${REPLACED_CMAKE_CXX_FLAGS})
-
-  check_cxx_compiler_flag("-std=c++11" COMPILER_HAS_CXX11_FLAG)
-  if (COMPILER_HAS_CXX11_FLAG)
-    target_compile_options(${omvglib} INTERFACE "-std=c++11")
-  endif(COMPILER_HAS_CXX11_FLAG)
-
-endforeach()
 
 # openMVG tutorial examples
 if (OpenMVG_BUILD_EXAMPLES)
@@ -496,6 +461,7 @@ message("** OpenMVG version: " ${OPENMVG_VERSION})
 message("** Build Shared libs: " ${OpenMVG_BUILD_SHARED})
 message("** Build OpenMVG tests: " ${OpenMVG_BUILD_TESTS})
 message("** Build OpenMVG softwares: " ${OpenMVG_BUILD_SOFTWARES})
+message("** Build OpenMVG GUI softwares: " ${OpenMVG_BUILD_GUI_SOFTWARES})
 message("** Build OpenMVG documentation: " ${OpenMVG_BUILD_DOC})
 message("** Build OpenMVG samples applications: " ${OpenMVG_BUILD_EXAMPLES})
 message("** Build OpenMVG openGL examples: " ${OpenMVG_BUILD_OPENGL_EXAMPLES})
@@ -505,6 +471,12 @@ message("** Build OpenCV+OpenMVG samples programs: " ${OpenMVG_USE_OPENCV})
 message("** Use OpenCV SIFT features: " ${OpenMVG_USE_OCVSIFT})
 
 message("\n")
+
+if (DEFINED OpenMVG_USE_INTERNAL_CEREAL)
+  message(STATUS "CEREAL: (internal)")
+else()
+  message(STATUS "CEREAL: (external)")
+endif()
 
 if (DEFINED OpenMVG_USE_INTERNAL_EIGEN)
   message(STATUS "EIGEN: " ${EIGEN_VERSION} " (internal)")
@@ -574,45 +546,11 @@ message("\n")
 
 install(EXPORT openMVG-targets DESTINATION lib)
 install(EXPORT openMVG-targets
-        DESTINATION share/openMVG/cmake FILE OpenMVGTargets.cmake)
+  FILE OpenMVGTargets.cmake
+  NAMESPACE OpenMVG::
+  DESTINATION share/openMVG/cmake
+)
 
-#Adapt build include paths to install path
-set(OpenMVG_INCLUDE_DIRS
-  "${OpenMVG_INCLUDE_DIRS}"
-  "${CMAKE_INSTALL_PREFIX}/include/openMVG")
-
-string(REGEX REPLACE
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${CMAKE_INSTALL_PREFIX}/include"
-  OpenMVG_INCLUDE_DIRS
-  "${OpenMVG_INCLUDE_DIRS}"
-)
-string(REGEX REPLACE
-  "third_party"
-  "openMVG/third_party"
-  OpenMVG_INCLUDE_DIRS
-  "${OpenMVG_INCLUDE_DIRS}"
-)
-string(REGEX REPLACE
-  "dependencies"
-  "openMVG_dependencies"
-  OpenMVG_INCLUDE_DIRS
-  "${OpenMVG_INCLUDE_DIRS}"
-)
-if (OpenMVG_USE_INTERNAL_CERES)
-  string(REGEX REPLACE
-    "ceres-solver"
-    "ceres"
-    OpenMVG_INCLUDE_DIRS
-    "${OpenMVG_INCLUDE_DIRS}"
-  )
-  string(REGEX REPLACE
-    "internal/ceres/"
-    ""
-    OpenMVG_INCLUDE_DIRS
-    "${OpenMVG_INCLUDE_DIRS}"
-  )
-endif (OpenMVG_USE_INTERNAL_CERES)
 
 # Build OpenMVG_CFLAGS variable for export
 set(OpenMVG_CFLAGS "")
