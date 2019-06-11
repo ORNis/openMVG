@@ -163,12 +163,14 @@ int main( int argc, char **argv )
   std::string sOutDir                = "";
   unsigned int clusterSizeLowerBound = 20;
   unsigned int clusterSizeUpperBound = 30;
+  unsigned int clusterOverlap = 4;
   float voxelGridSize                = 10.0f;
 
   cmd.add( make_option( 'i', sSfM_Data_Filename, "input_file" ) );
   cmd.add( make_option( 'o', sOutDir, "outdir" ) );
   cmd.add( make_option( 'l', clusterSizeLowerBound, "cluster_size_lower_bound" ) );
   cmd.add( make_option( 'u', clusterSizeUpperBound, "cluster_size_upper_bound" ) );
+  cmd.add( make_option( 'a', clusterOverlap, "cluster_overlap"  ) );
   cmd.add( make_option( 'v', voxelGridSize, "voxel_grid_size" ) );
 
   try
@@ -182,8 +184,9 @@ int main( int argc, char **argv )
     std::cerr << "Usage: " << argv[ 0 ] << "\n"
               << "[-i|--input_file] path to a SfM_Data scene\n"
               << "[-o|--outdir path] path to output directory\n"
-              << "[-l|--cluster_size_lower_bound] lower bound to cluster size\n"
-              << "[-u|--cluster_size_upper_bound] upper bound to cluster size\n"
+              << "[-l|--cluster_size_lower_bound] lower bound to cluster size (20)\n"
+              << "[-u|--cluster_size_upper_bound] upper bound to cluster size (30)\n"
+              << "[-a|--cluter_overlap] number of common images between adjascent clusters (4)"
               << "[-v|--voxel_grid_size] voxel grid size\n"
               << std::endl;
 
@@ -196,8 +199,9 @@ int main( int argc, char **argv )
             << "[Outdir path]     = "   << sOutDir << std::endl
             << "[Cluster size:"         << std::endl
             << "    Lower bound   = "   << clusterSizeLowerBound << std::endl
-            << "    Upper bound]   = "  << clusterSizeUpperBound << std::endl
-            << "[Voxel grid size]  = "  << voxelGridSize << std::endl;
+            << "    Upper bound]  = "  << clusterSizeUpperBound << std::endl
+            << "[Cluster overlap] = " << clusterOverlap << std::endl
+            << "[Voxel grid size] = "  << voxelGridSize << std::endl;
 
   if ( sSfM_Data_Filename.empty() )
   {
@@ -240,7 +244,7 @@ int main( int argc, char **argv )
   openMVG::system::Timer clusteringTimer;
 
   nomoko::Domset domset( points, views, cameras, voxelGridSize );
-  domset.clusterViews( clusterSizeLowerBound, clusterSizeUpperBound );
+  domset.clusterViews( clusterSizeLowerBound, clusterSizeUpperBound, clusterOverlap );
 
   std::cout << "Clustering view took (s): "
             << clusteringTimer.elapsed() << std::endl;

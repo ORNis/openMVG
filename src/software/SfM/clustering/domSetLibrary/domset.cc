@@ -401,6 +401,7 @@ const float Domset::computeViewSimilaity( const View &v1, const View &v2 )
 } // computeViewSimilaity
 
 void Domset::computeClustersAP( std::map<size_t, size_t> &xId2vId,
+                                std::vector<std::vector<size_t>> &nonOverlapClusters,
                                 std::vector<std::vector<size_t>> &clusters )
 {
   const size_t numX = xId2vId.size();
@@ -563,6 +564,7 @@ void Domset::computeClustersAP( std::map<size_t, size_t> &xId2vId,
       }
     }
 
+    
     // enforcing max size constraints
     for ( auto p = clMap.begin(); p != clMap.end(); ++p )
     {
@@ -587,6 +589,19 @@ void Domset::computeClustersAP( std::map<size_t, size_t> &xId2vId,
     }
   } while ( change );
 
+  // adding it to clusters vector
+  for ( auto p = clMap.begin(); p != clMap.end(); ++p )
+  {
+    std::vector<size_t> cl;
+    for ( const auto i : p->second )
+    {
+      cl.push_back( xId2vId[ i ] );
+    }
+    nonOverlapClusters.emplace_back( cl );
+  }
+
+
+
   // find the borders of each cluster
   auto findBorders = [&](std::vector<size_t> cluster)
   {
@@ -595,7 +610,7 @@ void Domset::computeClustersAP( std::map<size_t, size_t> &xId2vId,
 
     std::vector<size_t> borders;
     borders.push_back(center);
-    while ( borders.size() <= kNumOverlap )
+    while ( borders.size() <= kClusterOverlap )
     {
       auto borderView = *std::min_element(cluster.cbegin(), cluster.cend(),
         [&](size_t a, size_t b) {
@@ -656,36 +671,58 @@ void Domset::computeClustersAP( std::map<size_t, size_t> &xId2vId,
 }
 
 void Domset::clusterViews( std::map<size_t, size_t> &xId2vId, const size_t &minClusterSize,
-                           const size_t &maxClusterSize )
+                           const size_t &maxClusterSize, const size_t &clusterOverlap )
 {
 //  std::cout << "[ Clustering Views ] " << std::endl;
   kMinClusterSize  = minClusterSize;
   kMaxClusterSize  = maxClusterSize;
+  kClusterOverlap = clusterOverlap;
 
+  std::vector<std::vector<size_t>> nonOverlapclusters;
   std::vector<std::vector<size_t>> clusters;
-  computeClustersAP( xId2vId, clusters );
+  computeClustersAP( xId2vId, nonOverlapclusters, clusters );
 
   deNormalizePointCloud();
+  
+  for(int i = 0; i < nonOverlapclusters.size(); ++i)
+  {
+    std::cout << nonOverlapclusters[i].size() <<  " " << clusters[i].size() << std::endl;
+  }
+
+  //Here svm
+  std::cout << "here" << std::endl;
   finalClusters.swap( clusters );
 }
 
 void Domset::clusterViews(
-    const size_t &minClusterSize, const size_t &maxClusterSize )
+    const size_t &minClusterSize, const size_t &maxClusterSize, const size_t &clusterOverlap )
 {
 //  std::cout << "[ Clustering Views ] " << std::endl;
   const size_t numC = views.size();
   kMinClusterSize   = minClusterSize;
   kMaxClusterSize   = maxClusterSize;
+  kClusterOverlap = clusterOverlap;
 
   std::map<size_t, size_t> xId2vId;
   for ( size_t i = 0; i < numC; i++ )
   {
     xId2vId[ i ] = i;
   }
+  
+  std::vector<std::vector<size_t>> nonOverlapclusters;
   std::vector<std::vector<size_t>> clusters;
-  computeClustersAP( xId2vId, clusters );
+  computeClustersAP( xId2vId, nonOverlapclusters, clusters );
 
   deNormalizePointCloud();
+
+    
+  for(int i = 0; i < nonOverlapclusters.size(); ++i)
+  {
+    std::cout << nonOverlapclusters[i].size() <<  " " << clusters[i].size() << std::endl;
+  }
+
+  //Here svm
+
   finalClusters.swap( clusters );
 }
 

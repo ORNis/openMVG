@@ -57,13 +57,15 @@ namespace nomoko {
       }
 
       // AP clustering
-      void computeClustersAP(std::map<size_t,size_t>&, std::vector<std::vector<size_t>>&);
+      void computeClustersAP(std::map<size_t,size_t>&, 
+      std::vector<std::vector<size_t>>&,
+      std::vector<std::vector<size_t>>&);
 
       void clusterViews(std::map<size_t, size_t>& xId2vId, const size_t& minClustersize,
-          const size_t& maxClusterSize);
+          const size_t& maxClusterSize, const size_t& clusterOverlap);
 
       void clusterViews(const size_t& minClustersize,
-          const size_t& maxClusterSize);
+          const size_t& maxClusterSize, const size_t& clusterOverlap);
 
       // export function
       void exportToPLY(const std::string& plyFile, bool exportPoints = false);
@@ -94,7 +96,7 @@ namespace nomoko {
       const float kAngleSigma_2 = kAngleSigma * kAngleSigma;
       size_t kMinClusterSize = 10;
       size_t kMaxClusterSize = 20;
-      size_t kNumOverlap = 2;
+      size_t kClusterOverlap = 4;
       float kE = 0.01f;
 
       // AP constants
