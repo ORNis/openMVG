@@ -26,7 +26,7 @@ namespace nomoko {
       void findCommonPoints(const View& v1, const View& v2,
           std::vector<size_t>& commonPts);
       // similarity measures
-      const float computeViewSimilaity(const View&, const View&);
+      const float computeViewSimilarity(const View&, const View&);
       Eigen::MatrixXf getSimilarityMatrix(std::map<size_t,size_t>&);
 
       // distance measures
