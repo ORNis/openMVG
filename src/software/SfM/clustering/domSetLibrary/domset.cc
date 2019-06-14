@@ -11,8 +11,6 @@
 #include <omp.h>
 #endif
 
-#include <opencv2/ml/ml.hpp>
-
 #include <fstream>
 #include <limits>
 #include <random>
@@ -684,12 +682,7 @@ void Domset::clusterViews(std::map<size_t, size_t> &xId2vId, const size_t &minCl
 
   deNormalizePointCloud();
 
-  for (int i = 0; i < nonOverlapclusters.size(); ++i)
-  {
-    std::cout << nonOverlapclusters[i].size() << " " << clusters[i].size() << std::endl;
-  }
-
-  //Here svm
+  finalClustersNoOverlap.swap(nonOverlapclusters);
   finalClusters.swap(clusters);
 }
 
@@ -713,65 +706,8 @@ void Domset::clusterViews(
   computeClustersAP(xId2vId, nonOverlapclusters, clusters);
 
   deNormalizePointCloud();
-
-  std::map<size_t, size_t> map_view_to_cl;
-
-  for (int i = 0; i < nonOverlapclusters.size(); ++i)
-  {
-    for (const auto id : nonOverlapclusters[i])
-    {
-      map_view_to_cl[id] = i;
-    }
-  }
-
-  // Get points that appears in only one cluster
-  std::map<size_t, std::vector<Eigen::Vector3f>> map_cl_to_points;
-  int total_points = 0;
-  for (const auto &pt : origPoints)
-  {
-    std::set<size_t> cl_ids;
-    for(const auto & pt_id : pt.viewList)
-    {
-      cl_ids.insert(map_view_to_cl[pt_id]);
-    }
-    if(cl_ids.size() == 1)
-    {
-      map_cl_to_points[*cl_ids.begin()].emplace_back(pt.pos);
-      total_points +=1;
-    }
-  }
-
-  // Add Camera to clusters
-  total_points += views.size();
-  for(const auto & view : map_view_to_cl)
-  {
-    map_cl_to_points[view.second].emplace_back(views.at(view.first).trans);
-  }
-
-  cv::Mat trainingDataMat = cv::Mat::zeros(total_points, 3, CV_32FC1);
-  cv::Mat labelsMat = cv::Mat::zeros(total_points, 1, CV_32SC1);
-
-  int idx = 0;
-  for(auto cl : map_cl_to_points)
-  {
-    for(auto pt : cl.second)
-    {
-      labelsMat.at<int>(idx) = cl.first;
-      trainingDataMat.at<float>(idx,0) = pt.x();
-      trainingDataMat.at<float>(idx,1) = pt.y();
-      trainingDataMat.at<float>(idx,2) = pt.z();
-      ++idx;
-    }
-  }
-
-  std::cout << "[ Computing SVM parameters ] " << std::endl;
-  cv::Ptr<cv::ml::SVM> svm = cv::ml::SVM::create();
-  svm->setType(cv::ml::SVM::C_SVC);
-  svm->setKernel(cv::ml::SVM::RBF);
-  svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER, 5000, 1e-8));
-  svm->train(trainingDataMat, cv::ml::ROW_SAMPLE, labelsMat);
-  svm->save("svm_param.yml");
-    
+  
+  finalClustersNoOverlap.swap(nonOverlapclusters);
   finalClusters.swap(clusters);
 }
 

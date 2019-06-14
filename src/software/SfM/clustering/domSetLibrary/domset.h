@@ -75,6 +75,10 @@ namespace nomoko {
         return finalClusters;
       }
 
+      const std::vector<std::vector<size_t>>& getClustersNoOverlap() {
+        return finalClustersNoOverlap;;
+      }
+
       void setClusters(const std::vector<std::vector<size_t>> & clusters) {
         finalClusters = clusters;
       }
@@ -90,6 +94,7 @@ namespace nomoko {
       Eigen::MatrixXf viewDists;
 
       std::vector<std::vector<size_t >> finalClusters;
+      std::vector<std::vector<size_t>> finalClustersNoOverlap;
       std::vector<std::vector<size_t >> finalBorders;
 
       const float kAngleSigma = M_PI / 6.f;

@@ -9,6 +9,7 @@ target_link_libraries(openMVG_main_ComputeClusters
     openMVG_features
     openMVG_sfm
     domset
+    ${OpenCV_LIBS}
     ${STLPLUS_LIBRARY})
 
 set_property(TARGET openMVG_main_ComputeClusters PROPERTY FOLDER OpenMVG/software/clustering)
