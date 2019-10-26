@@ -12,7 +12,7 @@
 
 namespace openMVG {
 
-// HZ 12.2 pag.312
+// HZ 12.2 p.312
 void TriangulateDLT
 (
   const Mat34 &P1,
@@ -77,7 +77,7 @@ void TriangulateL1Angular
   const Vec3 n0 = m0.cross(t).normalized();
   const Vec3 n1 = m1.cross(t).normalized();
   
-  if(m0.normalized().cross(t).norm() <= m1.normalized().cross(t).norm())
+  if(m0.normalized().cross(t).squaredNorm() <= m1.normalized().cross(t).squaredNorm())
   {
     // Eq. (12)
     mprime0 = m0 - m0.dot(n1) * n1;
@@ -122,7 +122,7 @@ void TriangulateLInfinityAngular
   const Vec3 na = (m0.normalized() + m1.normalized()).cross(t);
   const Vec3 nb = (m0.normalized() - m1.normalized()).cross(t);
 
-  const Vec3 & nprime = na.norm() >= nb.norm() ? na.normalized() : nb.normalized();
+  const Vec3 & nprime = na.squaredNorm() >= nb.squaredNorm() ? na.normalized() : nb.normalized();
 
   const Vec3 mprime0 = m0 - (m0.dot(nprime)) * nprime;
   const Vec3 mprime1 = m1 - (m1.dot(nprime)) * nprime;
@@ -142,13 +142,9 @@ bool TriangulateIDW(
   const Mat34& P2,
   const Vec3& x2,
   Vec3* X_euclidean
-) {
+)
+{
   // x1 && x2 are bearings, thus they should be should be normalized
-  /*const Vec3 x1_norm = x1.normalized();
-  const Vec3 x2_norm = x2.normalized();*/
-  const Vec3& x1_norm = x1;
-  const Vec3& x2_norm = x2;
-
   const Mat3 &R1 = P1.block<3, 3>(0, 0);
   const Mat3 &R2 = P2.block<3, 3>(0, 0);
   const Vec3 &t1 = P1.block<3, 1>(0, 3);
@@ -158,30 +154,30 @@ bool TriangulateIDW(
   const Mat3 R = R2 * R1.transpose();
   const Vec3 t = t2 - R * t1;
 
-  const Vec3 Rx1_norm = R * x1_norm;
+  const Vec3 Rx1 = R * x1;
 
-  const double p_norm = Rx1_norm.cross(x2_norm).norm();
-  const double q_norm = Rx1_norm.cross(t).norm();
-  const double r_norm = x2_norm.cross(t).norm();
+  const double p_norm = Rx1.cross(x2).norm();
+  const double q_norm = Rx1.cross(t).norm();
+  const double r_norm = x2.cross(t).norm();
   
-  //Eq. (10)
+  // Eq. (10)
   const auto xprime1 = ( q_norm / (q_norm + r_norm) ) 
-    * ( t + (r_norm / p_norm) * (Rx1_norm + x2_norm) );
+    * ( t + (r_norm / p_norm) * (Rx1 + x2) );
 
-  // Relative to absolute
+  // relative to absolute
   *X_euclidean = R2.transpose() * (xprime1 - t2);
 
-  //Eq. (7)
-  const Vec3 lambda_1_Rx1_norm = (r_norm / p_norm) * Rx1_norm ;
-  const Vec3 lambda_2_x2_norm = (q_norm / p_norm) * x2_norm;
+  // Eq. (7)
+  const Vec3 lambda1_Rx1 = (r_norm / p_norm) * Rx1;
+  const Vec3 lambda2_x2 = (q_norm / p_norm) * x2;
 
-  //Eq. (9) - Cheirality 
-  return (t + lambda_1_Rx1_norm - lambda_2_x2_norm).squaredNorm()
+  // Eq. (9) - test adequation 
+  return (t + lambda1_Rx1 - lambda2_x2).squaredNorm()
     <
     std::min(std::min(
-      (t + lambda_1_Rx1_norm + lambda_2_x2_norm).squaredNorm(),
-      (t - lambda_1_Rx1_norm - lambda_2_x2_norm).squaredNorm()),
-      (t - lambda_1_Rx1_norm + lambda_2_x2_norm).squaredNorm());
+      (t + lambda1_Rx1 + lambda2_x2).squaredNorm(),
+      (t - lambda1_Rx1 - lambda2_x2).squaredNorm()),
+      (t - lambda1_Rx1 + lambda2_x2).squaredNorm());
 }
 
 }  // namespace openMVG
