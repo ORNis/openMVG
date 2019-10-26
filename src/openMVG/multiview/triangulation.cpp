@@ -158,30 +158,30 @@ bool TriangulateIDW(
   const Mat3 R = R2 * R1.transpose();
   const Vec3 t = t2 - R * t1;
 
-  const Vec3 Rx1_nom = R * x1_norm;
+  const Vec3 Rx1_norm = R * x1_norm;
 
-  const double p_norm = Rx1_nom.cross(x2_norm).norm();
-  const double q_norm = Rx1_nom.cross(t).norm();
+  const double p_norm = Rx1_norm.cross(x2_norm).norm();
+  const double q_norm = Rx1_norm.cross(t).norm();
   const double r_norm = x2_norm.cross(t).norm();
   
   //Eq. (10)
   const auto xprime1 = ( q_norm / (q_norm + r_norm) ) 
-    * ( t + (r_norm / p_norm) * (Rx1_nom + x2_norm) );
+    * ( t + (r_norm / p_norm) * (Rx1_norm + x2_norm) );
 
-   // Relative to absolute
-   *X_euclidean = R2.transpose() * (xprime1 - t2);
+  // Relative to absolute
+  *X_euclidean = R2.transpose() * (xprime1 - t2);
 
-   //Eq. (7)
-   const Vec3 lambda_1_Rx1_nom = (r_norm / p_norm) * Rx1_nom ;
-   const Vec3 lambda_2_x2_norm = (q_norm / p_norm) * x2_norm;
+  //Eq. (7)
+  const Vec3 lambda_1_Rx1_norm = (r_norm / p_norm) * Rx1_norm ;
+  const Vec3 lambda_2_x2_norm = (q_norm / p_norm) * x2_norm;
 
-   //Eq. (9) - Cheirality 
-   return (t + lambda_1_Rx1_nom - lambda_2_x2_norm).squaredNorm()
-     <
-     std::min(std::min(
-      (t + lambda_1_Rx1_nom + lambda_2_x2_norm).squaredNorm(),
-      (t - lambda_1_Rx1_nom - lambda_2_x2_norm).squaredNorm()),
-      (t - lambda_1_Rx1_nom + lambda_2_x2_norm).squaredNorm());
+  //Eq. (9) - Cheirality 
+  return (t + lambda_1_Rx1_norm - lambda_2_x2_norm).squaredNorm()
+    <
+    std::min(std::min(
+      (t + lambda_1_Rx1_norm + lambda_2_x2_norm).squaredNorm(),
+      (t - lambda_1_Rx1_norm - lambda_2_x2_norm).squaredNorm()),
+      (t - lambda_1_Rx1_norm + lambda_2_x2_norm).squaredNorm());
 }
 
 }  // namespace openMVG
