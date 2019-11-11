@@ -140,16 +140,16 @@ bool L2RotationAveraging
   Spectra::SymEigsSolver<double, Spectra::SMALLEST_MAGN, Spectra::SparseSymMatProd<double>> eigenSolver(&op, 3, 7);
 
   eigenSolver.init();
-  Eigen::Index nConverge = eigenSolver.compute(1000, 1e-10, Spectra::SMALLEST_MAGN);
+  Eigen::Index nConverge = eigenSolver.compute(2000, 1e-10, Spectra::SMALLEST_MAGN);
   if (nConverge < 3 || eigenSolver.info() != Eigen::Success)
   {
     return false;
   }
   // else
   {
-    const Vec & NullspaceVector0 = eigenSolver.eigenvectors(3).col(0);
-    const Vec & NullspaceVector1 = eigenSolver.eigenvectors(3).col(1);
-    const Vec & NullspaceVector2 = eigenSolver.eigenvectors(3).col(2);
+    const Vec NullspaceVector0 = eigenSolver.eigenvectors(3).col(0);
+    const Vec NullspaceVector1 = eigenSolver.eigenvectors(3).col(1);
+    const Vec NullspaceVector2 = eigenSolver.eigenvectors(3).col(2);
 
     //--
     // Search the closest matrix :
