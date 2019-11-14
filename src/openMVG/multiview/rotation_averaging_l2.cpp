@@ -125,7 +125,7 @@ bool L2RotationAveraging
     ++cpt;
   }
 
-  sMat AtAsparse;
+  sMat AtAsparse(3*nCamera, 3*nCamera);
   {
     // nCamera * 3 because each columns have 3 elements.
     sMat A(nRotationEstimation*3, 3*nCamera);
